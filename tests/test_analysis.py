@@ -6,7 +6,7 @@ from engine.config import load_config
 
 @pytest.fixture(scope="module")
 def cfg():
-    return load_config()
+    return load_config(local=None, skills_local=None)
 
 
 def skills(text, cfg):
@@ -102,6 +102,12 @@ def test_region_for():
     assert analysis.region_for("es", "EU") == "ES"
     assert analysis.region_for("de", "EU") == "EU"
     assert analysis.region_for(None, "US") == "US"
+    assert analysis.region_for("es", "Europe", {"Europe": 91000000}) == "Europe"
+    assert analysis.region_for("es", "EU", {"ES": 105646813, "EU": 91000000}) == "ES"
+
+
+def test_domain_categories(cfg):
+    assert cfg.scoring.is_domain("geo_libs") and not cfg.scoring.is_domain("languages")
 
 
 def test_tuning_regressions(cfg):

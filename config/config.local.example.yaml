@@ -1,0 +1,42 @@
+# Personal search profile. Copy to config/config.local.yaml (or run `uv run engine init`)
+# and edit it. Any key from config/config.yaml can be overridden here: dictionaries are
+# merged key by key (except `regions`, which is replaced), lists and scalars replace
+# the default value entirely.
+
+# Job titles / keywords to search on LinkedIn. Each one is searched in every region.
+queries:
+  - Data Engineer
+  - Analytics Engineer
+
+# Region label -> LinkedIn geoId. The label is free text and is what reports show.
+# To find a geoId: search jobs on linkedin.com, pick a location and copy the
+# `geoId=` value from the URL. Some common ones:
+#   Spain 105646813 · European Union 91000000 · United States 103644278
+#   United Kingdom 101165590 · Germany 101282230 · France 105015875
+#   Netherlands 102890719 · Worldwide 92000000
+regions:
+  ES: 105646813
+  EU: 91000000
+
+search:
+  posted_within_seconds: 604800   # only jobs posted in the last week
+  max_results_per_query: 50       # max jobs fetched per query × region (LinkedIn pages of 10)
+
+# Titles to discard (regex, case-insensitive). The default list excludes "analyst",
+# so it is replaced here with a minimal one; adjust to your target roles.
+title_exclude:
+  - '\bintern(ship)?\b'
+  - '\btrainee\b'
+
+# Rule-based relevance score: jobs scoring below `threshold` are hidden.
+# A threshold of 0 shows everything that passes the other filters. To rank and
+# filter, add title patterns for your roles and raise the threshold.
+scoring:
+  threshold: 0
+  title_terms:
+    weight: 4
+    patterns:
+      - '\bdata\b'
+  # Skill categories from config/skills.yaml (glob patterns) that count towards relevance
+  # and are highlighted in reports, e.g. ['data_engineering', 'databases'].
+  domain_skill_categories: ['data_engineering']

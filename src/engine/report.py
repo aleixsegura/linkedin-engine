@@ -11,6 +11,8 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
+from engine.config import Scoring
+
 _env = Environment(loader=PackageLoader("engine"), autoescape=select_autoescape())
 
 HIDDEN_LABELS = {
@@ -38,7 +40,9 @@ def _skills_by_job(conn: sqlite3.Connection, job_ids: list[str]) -> dict[str, li
     return out
 
 
-def render_new_jobs(conn: sqlite3.Connection, run_id: int, reports_dir: Path) -> Path:
+def render_new_jobs(
+    conn: sqlite3.Connection, run_id: int, reports_dir: Path, scoring: Scoring | None = None
+) -> Path:
     run = conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
     jobs = [
         dict(r)
@@ -51,6 +55,8 @@ def render_new_jobs(conn: sqlite3.Connection, run_id: int, reports_dir: Path) ->
     skills = _skills_by_job(conn, [j["id"] for j in jobs])
     for j in jobs:
         j["skills"] = skills.get(j["id"], [])
+        for s in j["skills"]:
+            s["domain"] = scoring is not None and scoring.is_domain(s["category"])
     hidden = {
         HIDDEN_LABELS.get(r["reason"], r["reason"]): r["n"]
         for r in conn.execute(
@@ -108,6 +114,7 @@ def render_trends(conn: sqlite3.Connection, reports_dir: Path) -> Path:
         data_json=json.dumps(data, ensure_ascii=False),
         generated=datetime.now().strftime("%Y-%m-%d %H:%M"),
         n_jobs=len(data["jobs"]),
+        regions=sorted({j[1] for j in data["jobs"] if j[1]}),
     )
     reports_dir.mkdir(parents=True, exist_ok=True)
     path = reports_dir / "trends.html"

@@ -29,7 +29,7 @@ def card(id, title, company="Acme", country="es"):
 
 @pytest.fixture
 def cfg():
-    c = load_config()
+    c = load_config(local=None, skills_local=None)
     c.queries = ["Geospatial Engineer"]
     return c
 
@@ -57,11 +57,12 @@ def test_full_run_and_reports(conn, cfg, tmp_path):
     run = conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
     assert run["status"] == "ok" and run["n_new"] == 1
 
-    html = report.render_new_jobs(conn, run_id, tmp_path).read_text()
+    html = report.render_new_jobs(conn, run_id, tmp_path, cfg.scoring).read_text()
     assert "Geospatial Engineer" in html and "Front-End Engineer" not in html and "PostGIS" in html
     data = report.trend_dataset(conn)
     assert len(data["jobs"]) == 1  # only the relevant job counts
-    assert "const DATA = " in report.render_trends(conn, tmp_path).read_text()
+    trends = report.render_trends(conn, tmp_path).read_text()
+    assert "const DATA = " in trends and 'data-region="ES"' in trends and 'data-region="US"' not in trends
 
 
 def test_second_run_only_new_and_reposts(conn, cfg):
@@ -104,3 +105,16 @@ def test_rescore_applies_new_config(conn, cfg):
     out = pipeline.rescore(conn, cfg)
     assert out["title"] == 1
     assert conn.execute("SELECT COUNT(*) FROM job_skills").fetchone()[0] == 0
+
+
+def test_cli_overrides(cfg):
+    import typer
+
+    from engine.cli import _apply_overrides
+
+    _apply_overrides(cfg, ["Data Engineer"], ["DE=101282230", "FR=105015875"], 20)
+    assert cfg.queries == ["Data Engineer"]
+    assert cfg.regions == {"DE": 101282230, "FR": 105015875}
+    assert cfg.max_results_per_query == 20
+    with pytest.raises(typer.BadParameter):
+        _apply_overrides(cfg, None, ["Germany"], None)

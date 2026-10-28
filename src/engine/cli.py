@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from typing import Annotated
@@ -10,7 +11,15 @@ from typing import Annotated
 import typer
 
 from engine import db, pipeline, report
-from engine.config import BACKUPS_DIR, DB_PATH, REPORTS_DIR, load_config
+from engine.config import (
+    BACKUPS_DIR,
+    DB_PATH,
+    LOCAL_CONFIG,
+    LOCAL_CONFIG_EXAMPLE,
+    REPORTS_DIR,
+    Config,
+    load_config,
+)
 from engine.notify import notify
 from engine.sources.linkedin_guest import LinkedInGuestSource
 
@@ -26,15 +35,65 @@ def _setup(verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False) ->
     )
 
 
+def _parse_region(value: str) -> tuple[str, int]:
+    name, sep, geo_id = value.partition("=")
+    if not sep or not name.strip() or not geo_id.strip().isdigit():
+        raise typer.BadParameter(f"expected NAME=GEOID (e.g. ES=105646813), got {value!r}")
+    return name.strip(), int(geo_id)
+
+
+def _apply_overrides(
+    cfg: Config, queries: list[str] | None, regions: list[str] | None, max_results: int | None
+) -> None:
+    if queries:
+        cfg.queries = queries
+    if regions:
+        cfg.regions = dict(_parse_region(r) for r in regions)
+    if max_results is not None:
+        cfg.max_results_per_query = max_results
+
+
+@app.command()
+def init(force: Annotated[bool, typer.Option(help="Overwrite an existing local config.")] = False) -> None:
+    """Create config/config.local.yaml, your personal search profile (roles, regions, limits)."""
+    if LOCAL_CONFIG.exists() and not force:
+        raise typer.Exit(f"{LOCAL_CONFIG} already exists (use --force to overwrite).")
+    shutil.copyfile(LOCAL_CONFIG_EXAMPLE, LOCAL_CONFIG)
+    typer.echo(f"Created {LOCAL_CONFIG}. Edit it to set your queries, regions and limits.")
+
+
+@app.command("config")
+def show_config() -> None:
+    """Show the effective search settings (defaults merged with your local config)."""
+    cfg = load_config()
+    typer.echo(f"Local config: {LOCAL_CONFIG if LOCAL_CONFIG.exists() else 'none (using defaults)'}")
+    typer.echo("Queries:\n" + "\n".join(f"  - {q}" for q in cfg.queries))
+    typer.echo("Regions:\n" + "\n".join(f"  - {r}: {g}" for r, g in cfg.regions.items()))
+    typer.echo(f"Max results per query × region: {cfg.max_results_per_query}")
+    typer.echo(f"Posted within: {cfg.posted_within_seconds // 86400} days")
+    typer.echo(f"Relevance threshold: {cfg.scoring.threshold:g}")
+
+
 @app.command()
 def run(
     force: Annotated[bool, typer.Option(help="Ignore the minimum days between runs.")] = False,
+    query: Annotated[
+        list[str] | None, typer.Option("--query", "-q", help="Search query (repeatable). Overrides the config.")
+    ] = None,
+    region: Annotated[
+        list[str] | None,
+        typer.Option("--region", "-r", help="Region as NAME=GEOID (repeatable). Overrides the config."),
+    ] = None,
+    max_results: Annotated[
+        int | None, typer.Option(min=1, help="Max jobs fetched per query × region. Overrides the config.")
+    ] = None,
     max_queries: Annotated[int | None, typer.Option(help="Limit the number of query×region combinations (for testing).")] = None,
     open_report: Annotated[bool, typer.Option("--open/--no-open", help="Open the report when done.")] = False,
     notify_done: Annotated[bool, typer.Option("--notify/--no-notify")] = True,
 ) -> None:
     """Search for jobs, update the history and generate the reports."""
     cfg = load_config()
+    _apply_overrides(cfg, query, region, max_results)
     conn = db.connect(DB_PATH)
     now = datetime.now(timezone.utc)
     if not force and not pipeline.should_run(conn, cfg, now):
@@ -54,7 +113,7 @@ def run(
         if notify_done:
             notify("LinkedIn engine", f"Run failed: {exc}")
         raise
-    path = report.render_new_jobs(conn, run_id, REPORTS_DIR)
+    path = report.render_new_jobs(conn, run_id, REPORTS_DIR, cfg.scoring)
     report.render_trends(conn, REPORTS_DIR)
     n_new = conn.execute("SELECT n_new FROM runs WHERE id = ?", (run_id,)).fetchone()["n_new"]
     typer.echo(f"{n_new} new relevant jobs → {path}")
@@ -73,7 +132,7 @@ def report_cmd(run_id: Annotated[int | None, typer.Argument(help="Run id (defaul
         if row is None:
             raise typer.Exit("No runs yet.")
         run_id = row["id"]
-    typer.echo(report.render_new_jobs(conn, run_id, REPORTS_DIR))
+    typer.echo(report.render_new_jobs(conn, run_id, REPORTS_DIR, load_config().scoring))
 
 
 @app.command()
@@ -85,7 +144,7 @@ def rescore() -> None:
     typer.echo(dict(pipeline.rescore(conn, cfg)))
     row = conn.execute("SELECT id FROM runs WHERE status = 'ok' ORDER BY id DESC LIMIT 1").fetchone()
     if row:
-        report.render_new_jobs(conn, row["id"], REPORTS_DIR)
+        report.render_new_jobs(conn, row["id"], REPORTS_DIR, cfg.scoring)
     typer.echo(report.render_trends(conn, REPORTS_DIR))
 
 

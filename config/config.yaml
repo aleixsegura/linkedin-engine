@@ -1,4 +1,6 @@
-# Engine configuration for geospatial job searches.
+# Default engine configuration (the author's geospatial profile).
+# To target other roles, don't edit this file: run `uv run engine init` and edit
+# config/config.local.yaml instead (git-ignored, merged on top of this file).
 
 queries:
   - Geospatial Engineer
@@ -118,8 +120,11 @@ scoring:
       - '\bprogrammer\b'
       - '\bscientist\b'
       - '\barchitect\b'
-  geo_skill_weight: 1         # per geo-category skill found in the description
-  geo_skill_cap: 5
+  # Skill categories (glob patterns over config/skills.yaml) that add to the score
+  # and are highlighted in reports.
+  domain_skill_categories: ['geo_*']
+  domain_skill_weight: 1      # per domain skill found in the description
+  domain_skill_cap: 5
   negative_terms:             # subtracted if they appear in the title (empty for now)
     weight: -4
     patterns: []

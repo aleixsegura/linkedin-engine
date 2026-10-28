@@ -57,7 +57,7 @@ summary { cursor: pointer; color: var(--muted); font-size: 13px; }
     </div>
     {% if j.skills %}
     <div class="chips">
-      {% for s in j.skills %}<span class="chip{% if s.category.startswith('geo_') %} geo{% endif %}">{{ s.name }}</span>{% endfor %}
+      {% for s in j.skills %}<span class="chip{% if s.domain %} domain{% endif %}">{{ s.name }}</span>{% endfor %}
     </div>
     {% endif %}
     {% if j.description %}

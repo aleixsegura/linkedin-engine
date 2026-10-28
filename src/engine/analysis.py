@@ -41,8 +41,12 @@ def normalize_company(company: str) -> str:
     return _NON_WORD.sub(" ", c).strip()
 
 
-def region_for(country: str | None, search_region: str) -> str:
-    return COUNTRY_REGION.get(country or "", search_region)
+def region_for(country: str | None, search_region: str, regions: dict[str, int] | None = None) -> str:
+    """Narrow a broad search region to the job's country label, if that label is a configured region."""
+    label = COUNTRY_REGION.get(country or "")
+    if label is None or (regions is not None and label not in regions):
+        return search_region
+    return label
 
 
 def title_excluded(title: str, cfg: Config) -> bool:
@@ -86,8 +90,8 @@ def relevance(title: str, skills: dict[str, str], cfg: Config) -> float:
         score += sc.engineering_title_terms.weight
     if any(p.search(title) for p in sc.negative_terms.patterns):
         score += sc.negative_terms.weight
-    geo = sum(1 for cat in skills.values() if cat.startswith("geo_"))
-    score += min(geo, sc.geo_skill_cap) * sc.geo_skill_weight
+    domain = sum(1 for cat in skills.values() if sc.is_domain(cat))
+    score += min(domain, sc.domain_skill_cap) * sc.domain_skill_weight
     return score
 
 

@@ -175,7 +175,7 @@ def run(
                 conn.execute("UPDATE jobs SET last_seen = ? WHERE id = ?", (now.isoformat(), job_id))
             else:
                 search_region = sorted(hits, key=lambda h: h[1] == "EU")[0][1]
-                region = analysis.region_for(card.country, search_region)
+                region = analysis.region_for(card.country, search_region, cfg.regions)
                 outcome = _insert_new_job(conn, source, cfg, card, region, run_id, now)
                 outcomes[outcome or "visible"] += 1
                 new_ids.append(job_id)

@@ -22,10 +22,7 @@ tbody tr.sel td:first-child { font-weight: 600; color: var(--accent); }
 
   <div class="bar" id="regions">
     <button class="pill" data-region="" aria-pressed="true">All</button>
-    <button class="pill" data-region="ES" aria-pressed="false">ES</button>
-    <button class="pill" data-region="EU" aria-pressed="false">EU</button>
-    <button class="pill" data-region="US" aria-pressed="false">US</button>
-    <button class="pill" data-region="UK" aria-pressed="false">UK</button>
+    {% for region in regions %}<button class="pill" data-region="{{ region }}" aria-pressed="false">{{ region }}</button>{% endfor %}
   </div>
   <div class="bar">
     <select id="cat" aria-label="Category"><option value="">All categories</option></select>

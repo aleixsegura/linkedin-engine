@@ -2,7 +2,9 @@
 # With no patterns (null) the literal name is matched with word boundaries.
 # Patterns are case-insensitive; use (?-i:...) for ambiguous terms that must
 # respect case (R, Go, C...).
-# Categories starting with "geo_" count towards the relevance score.
+# Categories matching scoring.domain_skill_categories (default "geo_*") count
+# towards the relevance score. Add or override categories in
+# config/skills.local.yaml (git-ignored, merged on top of this file).
 
 geo_gis_desktop:
   ArcGIS: ['\barcgis\b(?!\s*(pro|online|enterprise|server))', '\besri\b']
