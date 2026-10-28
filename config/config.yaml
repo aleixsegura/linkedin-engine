@@ -1,0 +1,125 @@
+# Configuración del motor de búsqueda de ofertas geoespaciales.
+
+queries:
+  - Geospatial Engineer
+  - Geospatial Software Engineer
+  - Geospatial Developer
+  - GIS Developer
+  - GIS Engineer
+  - Remote Sensing Engineer
+  - Earth Observation Engineer
+  - Geospatial Data Scientist
+  - Geospatial Data Engineer
+  - Mapping Engineer
+  - Spatial Data Engineer
+  - Geodata Engineer
+  - Photogrammetry Engineer
+  - Desarrollador GIS
+  - Ingeniero GIS
+
+# Región -> geoId de LinkedIn.
+regions:
+  ES: 105646813
+  EU: 91000000
+  US: 103644278
+  UK: 101165590
+
+search:
+  posted_within_seconds: 604800   # última semana
+  max_results_per_query: 100
+  min_delay_seconds: 1.0
+  max_delay_seconds: 3.0
+  max_retries: 4
+
+schedule:
+  min_days_between_runs: 3
+
+backups:
+  keep: 10
+
+# Títulos que se descartan (regex, sin distinguir mayúsculas).
+title_exclude:
+  - '\banalyst\b'
+  - '\banalista\b'
+  - '\btechnician\b'
+  - '\bt[eé]cnic[oa]\b'
+  - '\bdrafter\b'
+  - '\bdelineante\b'
+  - '\bsurveyor\b'
+  - '\btop[oó]graf[oa]\b'
+  - '\bsales\b'
+  - '\bintern(ship)?\b'
+  - '\bbecari[oa]\b'
+  - '\bbecas?\b'
+  - '\bpr[aá]cticas\b'
+  - '\bwerkstudent'
+  - '\bpraktik'
+  - '\bstagiaire\b'
+  - '\bstage\b'
+  - '\btrainee\b'
+
+# Idiomas de la descripción aceptados (ISO 639-1). Otro idioma -> oculta.
+allowed_description_languages: [en, es, ca]
+
+# Frases que indican que se exige un idioma no aceptado.
+foreign_language_requirements:
+  - '\b(fluent|fluency|native|proficien\w*|business[- ]level|excellent|strong|good|working)\b[^.\n]{0,40}\b(german|french|dutch|italian|polish|swedish|danish|norwegian|finnish|portuguese|czech|romanian|greek|hungarian)\b'
+  - '\b(german|french|dutch|italian|polish|swedish|danish|norwegian|finnish|portuguese|czech|romanian|greek|hungarian)\b[^.\n]{0,30}\b(required|mandatory|essential|is a must|fluent|native|c1|c2|b2)\b'
+  - '\b(alemán|francés|neerlandés|italiano|polaco)\b[^.\n]{0,30}\b(imprescindible|obligatorio|nativo|fluido|c1|c2|b2)\b'
+  - 'flie(ß|ss)end\w* deutsch'
+  - 'deutschkenntnisse'
+
+clearance_requirements:
+  - '\bsecurity clearance\b'
+  - '\b(active|current|existing|obtain|eligible (for|to obtain))\b[^.\n]{0,25}\bclearance\b'
+  - '\b(ts/sci|top secret|secret clearance)\b'
+  - '\bpublic trust (clearance|position|background)'
+  - '\b(sc|dv|nv1|nv2)\s+(clearance|cleared|level)\b'
+  - '\b(sc|dv)[- ]cleared\b'
+  - '\bu\.?s\.? citizen(ship)?\b[^.\n]{0,30}\b(required|only|must)\b'
+  - '\bmust be a u\.?s\.? citizen\b'
+  - '\bitar\b'
+  - '\bsole (uk|british) national'
+
+no_sponsorship:
+  - '\b(no|not|unable to|cannot|can''t|will not|won''t)\b[^.\n]{0,30}\b(visa )?sponsor'
+  - '\bsponsorship (is )?not (available|offered|provided)\b'
+  - '\bwithout (the need for )?(visa )?sponsorship\b'
+
+workplace:
+  remote: ['\bfully remote\b', '\bremote[- ]first\b', '\b100% remote\b', '\bremote\b(?![- ]sens)', '\bteletrabajo\b', '\bremoto\b']
+  hybrid: ['\bhybrid\b', '\bh[ií]brido\b']
+
+# Puntuación de relevancia (reglas). Una oferta con score < threshold se oculta.
+scoring:
+  threshold: 4
+  title_terms:                # suman si aparecen en el TÍTULO
+    weight: 4
+    patterns:
+      - '\bgis\b'
+      - '\bgeo(?!t[eé]c|log|t[eé]rm|therm)\w*'
+      - '\bspatial\b'
+      - '\bremote sensing\b'
+      - '\bteledetecci[oó]n\b'
+      - '\bearth observation\b'
+      - '\bmapping\b'
+      - '\bmaps?\b'
+      - '\bphotogrammetr\w*'
+      - '\bcartograph\w*'
+      - '\blidar\b'
+      - '\bsatellite\b'
+  engineering_title_terms:    # suman si el título es de ingeniería/software
+    weight: 2
+    patterns:
+      - '\bengineer\w*'
+      - '\bdevelop\w*'
+      - '\bdesarrollador\w*'
+      - '\bingenier[oa]\b'
+      - '\bprogrammer\b'
+      - '\bscientist\b'
+      - '\barchitect\b'
+  geo_skill_weight: 1         # por cada skill de categoría geo detectada en la descripción
+  geo_skill_cap: 5
+  negative_terms:             # restan si aparecen en el título (vacío por ahora)
+    weight: -4
+    patterns: []

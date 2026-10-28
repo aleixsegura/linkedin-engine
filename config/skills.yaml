@@ -1,0 +1,188 @@
+# Taxonomía de skills: categoría -> { Nombre canónico: [patrones regex] }
+# Sin patrones (null) se busca el nombre literal con límites de palabra.
+# Los patrones se evalúan sin distinguir mayúsculas; usa (?-i:...) para términos
+# ambiguos que deben respetar mayúsculas (R, Go, C...).
+# Las categorías que empiezan por "geo_" cuentan para la puntuación de relevancia.
+
+geo_gis_desktop:
+  ArcGIS: ['\barcgis\b(?!\s*(pro|online|enterprise|server))', '\besri\b']
+  ArcGIS Pro: ['\barcgis pro\b']
+  ArcGIS Online: ['\barcgis online\b', '\bagol\b']
+  ArcGIS Enterprise: ['\barcgis (enterprise|server)\b', '\bportal for arcgis\b']
+  QGIS: null
+  FME: ['(?-i:\bFME\b)', '\bsafe software\b']
+  GRASS GIS: ['\bgrass gis\b']
+  Global Mapper: null
+  ERDAS IMAGINE: ['\berdas\b']
+  ENVI: ['(?-i:\bENVI\b)']
+
+geo_libs:
+  GDAL/OGR: ['\bgdal\b', '(?-i:\bOGR\b)']
+  GeoPandas: null
+  Shapely: null
+  Rasterio: null
+  Fiona: ['(?-i:\bFiona\b)']
+  pyproj: ['\bpyproj\b', '\bproj\b(?!ect)']
+  xarray: null
+  rioxarray: null
+  ArcPy: null
+  PyQGIS: null
+  GeoTools: null
+  JTS: ['(?-i:\bJTS\b)']
+  GEOS: ['(?-i:\bGEOS\b)']
+  H3: ['(?-i:\bH3\b)']
+  S2 Geometry: ['\bs2 geometry\b', '\bs2geometry\b']
+  Turf.js: ['\bturf(\.js)?\b']
+  sf (R): ['(?-i:\bsf\b) package', '\br-spatial\b', '\bterra package\b']
+  WhiteboxTools: ['\bwhitebox\w*\b']
+  PDAL: null
+  Open3D: null
+  osmnx: null
+  NetworkX: null
+  Apache Sedona: ['\bsedona\b', '\bgeospark\b']
+  DuckDB Spatial: ['\bduckdb[- ]spatial\b']
+  Dask: null
+
+geo_spatial_db:
+  PostGIS: null
+  Oracle Spatial: ['\boracle spatial\b']
+  SpatiaLite: null
+  BigQuery GIS: ['\bbigquery gis\b']
+  GeoMesa: null
+
+geo_web:
+  GeoServer: null
+  MapServer: null
+  Leaflet: null
+  OpenLayers: null
+  Mapbox: null
+  MapLibre: null
+  Cesium: ['\bcesium(js)?\b']
+  deck.gl: ['\bdeck\.?gl\b']
+  ArcGIS Maps SDK for JavaScript: ['\barcgis (maps sdk for )?javascript\b', '\barcgis js\b']
+  Kepler.gl: ['\bkepler\.?gl\b']
+  Google Maps API: ['\bgoogle maps (api|platform|sdk)\b']
+  pg_tileserv / Martin: ['\bpg_tileserv\b', '\bmartin tile']
+  Vector tiles: ['\bvector tiles?\b', '\bmvt\b', '\bpmtiles\b']
+
+geo_remote_sensing:
+  Google Earth Engine: ['\bgoogle earth engine\b', '(?-i:\bGEE\b)', '\bearth engine\b']
+  Sentinel: ['\bsentinel[- ]?[12]?\b', '\bcopernicus\b']
+  Landsat: null
+  SAR: ['(?-i:\bSAR\b)', '\bsynthetic aperture radar\b', '\binsar\b']
+  LiDAR: ['\blidar\b', '\bpoint clouds?\b']
+  Photogrammetry: ['\bphotogrammetr\w*', '\bstructure from motion\b']
+  Hyperspectral/Multispectral: ['\b(hyper|multi)spectral\b']
+  SNAP (ESA): ['(?-i:\bSNAP\b)']
+  Orfeo Toolbox: ['\borfeo\b']
+  Image classification/segmentation (EO): ['\b(land cover|land use) classification\b', '\bchange detection\b']
+
+geo_standards:
+  OGC standards: ['(?-i:\bOGC\b)', '\bwms\b', '\bwfs\b', '\bwmts\b', '\bwcs\b', '\bogc api\b']
+  STAC: ['(?-i:\bSTAC\b)', '\bspatiotemporal asset catalog']
+  COG: ['(?-i:\bCOGs?\b)', '\bcloud[- ]optimi[sz]ed geotiff\b']
+  GeoParquet: null
+  GeoJSON: null
+  GeoTIFF: null
+  Shapefile: ['\bshapefiles?\b']
+  Zarr: null
+  NetCDF: null
+  OpenStreetMap: ['\bopenstreetmap\b', '(?-i:\bOSM\b)']
+  INSPIRE: ['(?-i:\bINSPIRE\b) (directive|data|services|compliant)']
+  Coordinate systems/projections: ['\bcoordinate (reference )?systems?\b', '\bmap projections?\b', '\bgeodesy\b', '\bgeodetic\b']
+
+engineering_cad:
+  GNSS/GPS: ['\bgnss\b', '(?-i:\bGPS\b)', '\brtk\b']
+  CAD (AutoCAD/MicroStation): ['\bautocad\b', '\bmicrostation\b', '\bcivil ?3d\b']
+  BIM: ['(?-i:\bBIM\b)', '\bifc\b']
+
+languages:
+  Python: null
+  SQL: ['(?-i:\bSQL\b)', '\bpl/pgsql\b']
+  R: ['(?-i:\bR\b)(?![-&/]?\s*D\b)(?!&)']
+  JavaScript: ['\bjavascript\b', '(?-i:\bJS\b)']
+  TypeScript: null
+  Java: ['\bjava\b(?!script)']
+  C++: ['(?<!\w)c\+\+(?!\w)']
+  C#: ['(?<!\w)c#(?!\w)', '\b\.net\b', '\bdotnet\b']
+  Go: ['(?-i:\bGo\b)(?=\s*(lang|,|/|\)|and\b|or\b|developer|programming|services))', '\bgolang\b']
+  Rust: ['(?-i:\bRust\b)']
+  Scala: ['(?-i:\bScala\b)']
+  Kotlin: null
+  Swift: ['(?-i:\bSwift\b)']
+  Julia: ['(?-i:\bJulia\b)']
+  MATLAB: null
+  Bash/Shell: ['\bbash\b', '\bshell script\w*']
+
+data_engineering:
+  Apache Spark: ['\bspark\b', '\bpyspark\b']
+  Apache Airflow: ['\bairflow\b']
+  dbt: ['(?-i:\bdbt\b)']
+  Kafka: null
+  Databricks: null
+  Snowflake: ['(?-i:\bSnowflake\b)']
+  BigQuery: ['\bbigquery\b(?! gis)']
+  DuckDB: ['\bduckdb\b(?![- ]spatial)']
+  Pandas: ['\bpandas\b']
+  NumPy: null
+  Polars: null
+  ETL/ELT: ['\betl\b', '\belt\b']
+  Data pipelines: ['\bdata pipelines?\b']
+  Apache Iceberg/Delta: ['\biceberg\b', '\bdelta lake\b']
+
+databases:
+  PostgreSQL: ['\bpostgres(ql)?\b']
+  MySQL: null
+  SQL Server: ['\bsql server\b', '\bmssql\b']
+  Oracle DB: ['\boracle\b(?! spatial)']
+  MongoDB: ['\bmongo(db)?\b']
+  Elasticsearch: ['\belastic(search)?\b', '\bopensearch\b']
+  Redis: null
+
+cloud:
+  AWS: ['(?-i:\bAWS\b)', '\bamazon web services\b']
+  Azure: ['\bazure\b']
+  GCP: ['(?-i:\bGCP\b)', '\bgoogle cloud\b']
+  S3: ['(?-i:\bS3\b)']
+  Serverless: ['\bserverless\b', '\blambda functions?\b', '\baws lambda\b']
+
+devops:
+  Docker: null
+  Kubernetes: ['\bkubernetes\b', '(?-i:\bk8s\b)']
+  Terraform: null
+  CI/CD: ['\bci/cd\b', '\bcontinuous (integration|delivery|deployment)\b', '\bgithub actions\b', '\bgitlab ci\b', '\bjenkins\b']
+  Git: ['\bgit\b(?!hub|lab)', '\bgithub\b', '\bgitlab\b']
+  Linux: null
+
+web_backend:
+  Django: null
+  FastAPI: null
+  Flask: ['(?-i:\bFlask\b)']
+  Node.js: ['\bnode(\.js|js)?\b(?!s)']
+  Spring: ['\bspring( boot)?\b']
+  REST APIs: ['\brest(ful)? apis?\b', '\brest services?\b']
+  GraphQL: null
+  Microservices: ['\bmicro-?services?\b']
+
+web_frontend:
+  React: ['\breact(\.js|js)?\b(?! native)']
+  Angular: null
+  Vue: ['\bvue(\.js|js)?\b']
+  HTML/CSS: ['\bhtml5?\b', '\bcss3?\b']
+
+ml_ai:
+  Machine Learning: ['\bmachine learning\b', '(?-i:\bML\b)']
+  Deep Learning: ['\bdeep learning\b', '\bneural networks?\b']
+  Computer Vision: ['\bcomputer vision\b']
+  PyTorch: null
+  TensorFlow: null
+  scikit-learn: ['\bscikit[- ]learn\b', '\bsklearn\b']
+  LLMs/GenAI: ['\bllms?\b', '\bgenerative ai\b', '\bgenai\b', '\blarge language models?\b']
+
+education:
+  Degree in Geography: ['\bgeograph(y|ical sciences)\b', '\bgeograf[ií]a\b']
+  Degree in Geomatics/Geoinformatics: ['\bgeomatic\w*', '\bgeoinformati\w*', '\bgeoinformation\b', '\bgeodes(y|ia)\b']
+  Degree in Computer Science: ['\bcomputer science\b', '\binform[aá]tica\b', '\bsoftware engineering degree\b']
+  Degree in Remote Sensing/Earth Sciences: ['\bearth sciences?\b', '\bremote sensing (degree|background)\b', '\benvironmental science\b']
+  MSc: ['\bm\.?sc\b', '\bmaster\W?s? (degree|in)\b', '\bm[aá]ster\b']
+  PhD: ['\bph\.?d\b', '\bdoctora(te|do)\b']

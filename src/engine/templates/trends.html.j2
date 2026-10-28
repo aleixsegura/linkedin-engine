@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tendencias de skills</title>
+<style>
+{% include "_style.css.j2" %}
+.chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 0 0 20px; height: 340px; }
+tbody tr { cursor: pointer; }
+tbody tr.sel td:first-child { font-weight: 600; color: var(--accent); }
+.barcell { position: relative; }
+.barfill { position: absolute; left: 0; top: 6px; bottom: 6px; background: var(--accent-soft); border-radius: 4px; z-index: 0; }
+.barcell span { position: relative; z-index: 1; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Tendencias de skills</h1>
+  <p class="sub">% de ofertas que mencionan cada skill · {{ n_jobs }} ofertas únicas en el histórico ·
+    <a href="latest.html">← Últimas ofertas</a></p>
+
+  <div class="bar" id="regions">
+    <button class="pill" data-region="" aria-pressed="true">Todas</button>
+    <button class="pill" data-region="ES" aria-pressed="false">ES</button>
+    <button class="pill" data-region="EU" aria-pressed="false">EU</button>
+    <button class="pill" data-region="US" aria-pressed="false">US</button>
+    <button class="pill" data-region="UK" aria-pressed="false">UK</button>
+  </div>
+  <div class="bar">
+    <select id="cat" aria-label="Categoría"><option value="">Todas las categorías</option></select>
+    <select id="win" aria-label="Ventana">
+      <option value="4">Últimas 4 semanas</option>
+      <option value="12">Últimas 12 semanas</option>
+      <option value="0">Todo el histórico</option>
+    </select>
+    <span class="muted" id="info"></span>
+  </div>
+
+  <div class="chart-wrap"><canvas id="chart" aria-label="Evolución semanal"></canvas></div>
+  <p class="muted">Haz clic en una fila para añadirla o quitarla del gráfico. Δ = cambio en puntos porcentuales frente a la ventana anterior del mismo tamaño.</p>
+
+  <table>
+    <thead><tr><th>Skill</th><th>Categoría</th><th class="num">% ofertas</th><th class="num">Δ pp</th><th class="num">Ofertas</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p class="muted">Generado {{ generated }}</p>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const DATA = {{ data_json|safe }};
+(() => {
+  const skills = DATA.skills, jobs = DATA.jobs;
+  const weeks = [...new Set(jobs.map(j => j[0]))].sort();
+  const cats = [...new Set(skills.map(s => s[1]))];
+  const catSel = document.getElementById("cat"), winSel = document.getElementById("win");
+  cats.forEach(c => catSel.add(new Option(c, c)));
+  let region = "", selected = null, chart = null;
+
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const palette = ["#1f6f5c", "#c2672b", "#3b6fb6", "#a1479a", "#7a8b1f", "#b8434f", "#2f8f9d", "#8a6d3b"];
+
+  function counts(ws) {
+    const set = new Set(ws), c = new Array(skills.length).fill(0);
+    let n = 0;
+    for (const [w, r, idx] of jobs) {
+      if (!set.has(w) || (region && r !== region)) continue;
+      n++;
+      for (const i of idx) c[i]++;
+    }
+    return { n, c };
+  }
+
+  function render() {
+    const win = +winSel.value;
+    const cur = win ? weeks.slice(-win) : weeks;
+    const prev = win ? weeks.slice(-2 * win, -win) : [];
+    const a = counts(cur), b = counts(prev);
+    const cat = catSel.value;
+    let rows = skills.map((s, i) => ({ i, name: s[0], cat: s[1], n: a.c[i],
+      pct: a.n ? 100 * a.c[i] / a.n : 0, prev: b.n ? 100 * b.c[i] / b.n : null }))
+      .filter(r => r.n > 0 && (!cat || r.cat === cat))
+      .sort((x, y) => y.pct - x.pct).slice(0, 40);
+    if (selected === null) selected = new Set(rows.slice(0, 5).map(r => r.i));
+    document.getElementById("info").textContent = `${a.n} ofertas en la ventana · ${cur.length} semanas`;
+    const max = rows.length ? rows[0].pct : 1;
+    document.getElementById("rows").innerHTML = rows.map(r => {
+      const d = r.prev === null ? "—" : (r.pct - r.prev).toFixed(1);
+      const cls = r.prev === null ? "" : (r.pct - r.prev > 0.5 ? "up" : (r.pct - r.prev < -0.5 ? "down" : ""));
+      return `<tr data-i="${r.i}" class="${selected.has(r.i) ? "sel" : ""}"><td>${r.name}</td><td class="muted">${r.cat}</td>
+        <td class="num barcell"><div class="barfill" style="width:${(r.pct / max * 100).toFixed(0)}%"></div><span>${r.pct.toFixed(1)}%</span></td>
+        <td class="num ${cls}">${d === "—" ? d : (d > 0 ? "+" + d : d)}</td><td class="num">${r.n}</td></tr>`;
+    }).join("");
+    document.querySelectorAll("#rows tr").forEach(tr => tr.addEventListener("click", () => {
+      const i = +tr.dataset.i;
+      selected.has(i) ? selected.delete(i) : selected.add(i);
+      render();
+    }));
+    drawChart(cur);
+  }
+
+  function drawChart(ws) {
+    if (!window.Chart) return;
+    const per = ws.map(w => counts([w]));
+    const datasets = [...selected].map((i, k) => ({
+      label: skills[i][0], borderColor: palette[k % palette.length], backgroundColor: palette[k % palette.length],
+      data: per.map(p => p.n ? +(100 * p.c[i] / p.n).toFixed(1) : null), tension: 0.25, spanGaps: true,
+    }));
+    const grid = css("--border"), text = css("--muted");
+    if (chart) chart.destroy();
+    chart = new Chart(document.getElementById("chart"), {
+      type: "line", data: { labels: ws, datasets },
+      options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+        scales: { y: { beginAtZero: true, ticks: { color: text, callback: v => v + "%" }, grid: { color: grid } },
+                  x: { ticks: { color: text }, grid: { color: grid } } },
+        plugins: { legend: { labels: { color: text } } } },
+    });
+  }
+
+  document.querySelectorAll("#regions .pill").forEach(b => b.addEventListener("click", () => {
+    region = b.dataset.region;
+    document.querySelectorAll("#regions .pill").forEach(x => x.setAttribute("aria-pressed", x === b));
+    render();
+  }));
+  catSel.addEventListener("change", () => { selected = null; render(); });
+  winSel.addEventListener("change", render);
+  render();
+})();
+</script>
+</body>
+</html>
