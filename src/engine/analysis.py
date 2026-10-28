@@ -1,4 +1,4 @@
-"""Análisis de ofertas: filtros, idioma, skills, relevancia y normalización para dedup."""
+"""Job analysis: filters, language, skills, relevance and normalization for dedup."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ DetectorFactory.seed = 0
 
 COUNTRY_REGION = {"es": "ES", "uk": "UK", "gb": "UK", "us": "US"}
 
-# Ruido habitual en títulos: género, modalidad, códigos entre paréntesis.
+# Common title noise: gender markers, work mode, codes in brackets.
 _TITLE_NOISE = re.compile(
     r"\((m|f|w|d|h|x|/)+\)|\b(m|f|w|d|h)/(m|f|w|d|h)(/(m|f|w|d|h|x))?\b|\([^)]*\)|\[[^\]]*\]"
     r"|\b(remote|hybrid|remoto|h[ií]brido)\b",
@@ -57,7 +57,7 @@ def detect_language(text: str) -> str | None:
 
 
 def extract_skills(text: str, cfg: Config) -> dict[str, str]:
-    """Devuelve {skill: categoría} encontradas en el texto."""
+    """Return {skill: category} for skills found in the text."""
     found = {}
     for category, skills in cfg.skills.items():
         for name, patterns in skills.items():
@@ -70,7 +70,7 @@ def detect_workplace(text: str, location: str, cfg: Config) -> str | None:
     haystack = f"{location}\n{text}"
     for kind in ("remote", "hybrid"):
         if any(p.search(haystack) for p in cfg.workplace.get(kind, [])):
-            # "hybrid" gana si aparece, porque muchas ofertas híbridas también dicen "remote".
+            # "hybrid" wins if present, since many hybrid jobs also mention "remote".
             if kind == "remote" and any(p.search(haystack) for p in cfg.workplace.get("hybrid", [])):
                 return "hybrid"
             return kind

@@ -1,4 +1,4 @@
-"""Almacenamiento SQLite."""
+"""SQLite storage."""
 
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 
 CREATE TABLE IF NOT EXISTS jobs (
-    id TEXT PRIMARY KEY,               -- id de la fuente (LinkedIn job id)
-    canonical_id TEXT NOT NULL,        -- id de la oferta original si es un repost
+    id TEXT PRIMARY KEY,               -- source id (LinkedIn job id)
+    canonical_id TEXT NOT NULL,        -- id of the original posting if this is a repost
     source TEXT NOT NULL,
     title TEXT NOT NULL,
     title_norm TEXT NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     company_norm TEXT,
     location TEXT,
     country TEXT,
-    region TEXT,                       -- ES | EU | US | UK
+    region TEXT,                       -- region label from config (e.g. ES | EU | US | UK)
     url TEXT,
     posted_at TEXT,
     first_seen TEXT NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     relevance REAL,
     hidden_reason TEXT,                -- NULL | title | lang | clearance | low_score | no_detail
     no_sponsorship INTEGER DEFAULT 0,
-    status TEXT                        -- reservado: applied | discarded | interesting
+    status TEXT                        -- reserved: applied | discarded | interesting
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_canonical ON jobs(canonical_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_fingerprint ON jobs(company_norm, title_norm, country);

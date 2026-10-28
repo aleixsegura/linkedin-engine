@@ -51,7 +51,7 @@ def test_full_run_and_reports(conn, cfg, tmp_path):
     assert jobs["1"]["hidden_reason"] is None and jobs["1"]["region"] == "ES"
     assert jobs["2"]["hidden_reason"] == "title"
     assert jobs["3"]["hidden_reason"] == "low_score" and jobs["3"]["region"] == "EU"
-    assert "2" not in src.detail_calls  # títulos excluidos no piden detalle
+    assert "2" not in src.detail_calls  # excluded titles don't fetch details
     regions = {r["region"] for r in conn.execute("SELECT region FROM job_queries WHERE job_id = '1'")}
     assert regions == {"ES", "EU"}
     run = conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
@@ -60,7 +60,7 @@ def test_full_run_and_reports(conn, cfg, tmp_path):
     html = report.render_new_jobs(conn, run_id, tmp_path).read_text()
     assert "Geospatial Engineer" in html and "Front-End Engineer" not in html and "PostGIS" in html
     data = report.trend_dataset(conn)
-    assert len(data["jobs"]) == 1  # solo cuenta la oferta relevante
+    assert len(data["jobs"]) == 1  # only the relevant job counts
     assert "const DATA = " in report.render_trends(conn, tmp_path).read_text()
 
 

@@ -1,4 +1,4 @@
-"""Interfaz común para fuentes de ofertas."""
+"""Common interface for job sources."""
 
 from __future__ import annotations
 
@@ -9,14 +9,14 @@ from typing import Protocol
 
 @dataclass
 class JobCard:
-    """Resultado de búsqueda (sin descripción)."""
+    """Search result (no description)."""
 
     id: str
     source: str
     title: str
     company: str
     location: str
-    country: str | None  # ISO-3166 alpha-2 en minúsculas, si se conoce
+    country: str | None  # lowercase ISO-3166 alpha-2, if known
     url: str
     posted_at: str | None  # YYYY-MM-DD
 

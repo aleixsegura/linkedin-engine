@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ofertas geoespaciales nuevas</title>
+<title>New jobs</title>
 <style>
 {% include "_style.css.j2" %}
 .card h2 { font-size: 17px; margin: 0; }
@@ -19,41 +19,41 @@ summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 </head>
 <body>
 <main>
-  <h1>Ofertas nuevas</h1>
-  <p class="sub">Ejecución #{{ run.id }} · {{ run.started_at[:16].replace("T", " ") }} UTC ·
-    <a href="trends.html">Ver tendencias de skills →</a></p>
+  <h1>New jobs</h1>
+  <p class="sub">Run #{{ run.id }} · {{ run.started_at[:16].replace("T", " ") }} UTC ·
+    <a href="trends.html">See skill trends →</a></p>
 
   <div class="stats">
-    <div class="stat"><b>{{ jobs|length }}</b><span>nuevas relevantes</span></div>
+    <div class="stat"><b>{{ jobs|length }}</b><span>new relevant</span></div>
     {% for region, n in by_region.items() %}
     <div class="stat"><b>{{ n }}</b><span>{{ region }}</span></div>
     {% endfor %}
-    <div class="stat"><b>{{ run.n_cards }}</b><span>resultados revisados</span></div>
+    <div class="stat"><b>{{ run.n_cards }}</b><span>results reviewed</span></div>
   </div>
 
   {% if hidden %}
   <ul class="hidden-list">
-    {% for label, n in hidden.items() %}<li>{{ n }} ocultas: {{ label }}</li>{% endfor %}
+    {% for label, n in hidden.items() %}<li>{{ n }} hidden: {{ label }}</li>{% endfor %}
   </ul>
   {% endif %}
 
   <div class="bar" id="filters">
-    <button class="pill" data-region="" aria-pressed="true">Todas</button>
+    <button class="pill" data-region="" aria-pressed="true">All</button>
     {% for region in by_region %}<button class="pill" data-region="{{ region }}" aria-pressed="false">{{ region }}</button>{% endfor %}
-    <input type="search" id="q" placeholder="Filtrar por texto o skill…" aria-label="Filtrar">
+    <input type="search" id="q" placeholder="Filter by text or skill…" aria-label="Filter">
   </div>
 
   {% for j in jobs %}
   <article class="card" data-region="{{ j.region }}"
            data-text="{{ (j.title ~ ' ' ~ j.company ~ ' ' ~ j.location ~ ' ' ~ (j.skills|map(attribute='name')|join(' ')))|lower }}">
-    <span class="score" title="Puntuación de relevancia">★ {{ '%g' % j.relevance }}</span>
+    <span class="score" title="Relevance score">★ {{ '%g' % j.relevance }}</span>
     <h2><a href="{{ j.url }}" target="_blank" rel="noopener">{{ j.title }}</a></h2>
-    <div class="meta">{{ j.company }} · {{ j.location }} · {{ j.region }}{% if j.posted_at %} · publicada {{ j.posted_at }}{% endif %}</div>
+    <div class="meta">{{ j.company }} · {{ j.location }} · {{ j.region }}{% if j.posted_at %} · posted {{ j.posted_at }}{% endif %}</div>
     <div class="chips">
       {% if j.seniority and j.seniority != 'Not Applicable' %}<span class="chip">{{ j.seniority }}</span>{% endif %}
       {% if j.employment_type %}<span class="chip">{{ j.employment_type }}</span>{% endif %}
-      {% if j.workplace_type %}<span class="chip">{{ {'remote': 'Remoto', 'hybrid': 'Híbrido'}[j.workplace_type] }}</span>{% endif %}
-      {% if j.no_sponsorship %}<span class="chip warn">Sin visa sponsorship</span>{% endif %}
+      {% if j.workplace_type %}<span class="chip">{{ {'remote': 'Remote', 'hybrid': 'Hybrid'}[j.workplace_type] }}</span>{% endif %}
+      {% if j.no_sponsorship %}<span class="chip warn">No visa sponsorship</span>{% endif %}
     </div>
     {% if j.skills %}
     <div class="chips">
@@ -61,13 +61,13 @@ summary { cursor: pointer; color: var(--muted); font-size: 13px; }
     </div>
     {% endif %}
     {% if j.description %}
-    <details><summary>Descripción</summary><div class="desc">{{ j.description }}</div></details>
+    <details><summary>Description</summary><div class="desc">{{ j.description }}</div></details>
     {% endif %}
   </article>
   {% else %}
-  <p class="muted">No hay ofertas nuevas relevantes en esta ejecución.</p>
+  <p class="muted">No new relevant jobs in this run.</p>
   {% endfor %}
-  <p class="muted">Generado {{ generated }}</p>
+  <p class="muted">Generated {{ generated }}</p>
 </main>
 <script>
 (() => {

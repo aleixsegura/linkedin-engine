@@ -1,4 +1,4 @@
-"""Carga de configuración (config.yaml y skills.yaml)."""
+"""Configuration loading (config.yaml and skills.yaml)."""
 
 from __future__ import annotations
 

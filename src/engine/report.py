@@ -1,4 +1,4 @@
-"""Generación de informes HTML: ofertas nuevas y tendencias de skills."""
+"""HTML report generation: new jobs and skill trends."""
 
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 _env = Environment(loader=PackageLoader("engine"), autoescape=select_autoescape())
 
 HIDDEN_LABELS = {
-    "title": "título excluido (analyst, technician, prácticas…)",
-    "lang": "exigen otro idioma",
-    "clearance": "exigen ciudadanía / clearance",
-    "low_score": "poca relevancia",
-    "no_detail": "sin descripción disponible",
-    "repost": "reposts de ofertas ya vistas",
+    "title": "excluded title (analyst, technician, internship…)",
+    "lang": "require another language",
+    "clearance": "require citizenship / clearance",
+    "low_score": "low relevance",
+    "no_detail": "no description available",
+    "repost": "reposts of jobs already seen",
 }
-# Ofertas que no cuentan para el histórico de skills (sin descripción o fuera de foco).
+# Jobs that don't count towards the skills history (no description or off-topic).
 TREND_EXCLUDED = ("title", "low_score", "no_detail")
 
 
@@ -80,7 +80,7 @@ def render_new_jobs(conn: sqlite3.Connection, run_id: int, reports_dir: Path) ->
 
 
 def trend_dataset(conn: sqlite3.Connection) -> dict:
-    """Datos compactos para la página de tendencias (agregados en el navegador)."""
+    """Compact data for the trends page (aggregated in the browser)."""
     marks = ",".join("?" * len(TREND_EXCLUDED))
     rows = conn.execute(
         f"""SELECT id, first_seen, region FROM jobs

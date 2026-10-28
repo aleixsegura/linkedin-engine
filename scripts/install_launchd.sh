@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Instala (o reinstala) la tarea de launchd que ejecuta el motor a diario a las 10:00.
-# El propio motor solo busca si han pasado >= min_days_between_runs desde la última ejecución.
-# Si el Mac estaba dormido a esa hora, launchd la lanza al despertar.
+# Installs (or reinstalls) the launchd job that runs the engine daily at 10:00 (or the hour given as $1).
+# The engine itself only searches if >= min_days_between_runs have passed since the last run.
+# If the Mac was asleep at that time, launchd runs it on wake.
 set -euo pipefail
 
 LABEL="com.aleix.linkedin-engine"
@@ -36,6 +36,6 @@ PLIST
 
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
-echo "Instalado $PLIST (diario a las $HOUR:00). Log: $LOG"
-echo "Probar ya:   launchctl kickstart gui/$(id -u)/$LABEL"
-echo "Desinstalar: launchctl bootout gui/$(id -u)/$LABEL && rm $PLIST"
+echo "Installed $PLIST (daily at $HOUR:00). Log: $LOG"
+echo "Run now:   launchctl kickstart gui/$(id -u)/$LABEL"
+echo "Uninstall: launchctl bootout gui/$(id -u)/$LABEL && rm $PLIST"

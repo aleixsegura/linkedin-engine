@@ -1,4 +1,4 @@
-# Configuración del motor de búsqueda de ofertas geoespaciales.
+# Engine configuration for geospatial job searches.
 
 queries:
   - Geospatial Engineer
@@ -17,7 +17,7 @@ queries:
   - Desarrollador GIS
   - Ingeniero GIS
 
-# Región -> geoId de LinkedIn.
+# Region label -> LinkedIn geoId.
 regions:
   ES: 105646813
   EU: 91000000
@@ -25,7 +25,7 @@ regions:
   UK: 101165590
 
 search:
-  posted_within_seconds: 604800   # última semana
+  posted_within_seconds: 604800   # last week
   max_results_per_query: 100
   min_delay_seconds: 1.0
   max_delay_seconds: 3.0
@@ -37,7 +37,7 @@ schedule:
 backups:
   keep: 10
 
-# Títulos que se descartan (regex, sin distinguir mayúsculas).
+# Titles to discard (regex, case-insensitive).
 title_exclude:
   - '\banalyst\b'
   - '\banalista\b'
@@ -58,10 +58,10 @@ title_exclude:
   - '\bstage\b'
   - '\btrainee\b'
 
-# Idiomas de la descripción aceptados (ISO 639-1). Otro idioma -> oculta.
+# Accepted description languages (ISO 639-1). Any other language -> hidden.
 allowed_description_languages: [en, es, ca]
 
-# Frases que indican que se exige un idioma no aceptado.
+# Phrases indicating a non-accepted language is required.
 foreign_language_requirements:
   - '\b(fluent|fluency|native|proficien\w*|business[- ]level|excellent|strong|good|working)\b[^.\n]{0,40}\b(german|french|dutch|italian|polish|swedish|danish|norwegian|finnish|portuguese|czech|romanian|greek|hungarian)\b'
   - '\b(german|french|dutch|italian|polish|swedish|danish|norwegian|finnish|portuguese|czech|romanian|greek|hungarian)\b[^.\n]{0,30}\b(required|mandatory|essential|is a must|fluent|native|c1|c2|b2)\b'
@@ -90,10 +90,10 @@ workplace:
   remote: ['\bfully remote\b', '\bremote[- ]first\b', '\b100% remote\b', '\bremote\b(?![- ]sens)', '\bteletrabajo\b', '\bremoto\b']
   hybrid: ['\bhybrid\b', '\bh[ií]brido\b']
 
-# Puntuación de relevancia (reglas). Una oferta con score < threshold se oculta.
+# Rule-based relevance score. Jobs with score < threshold are hidden.
 scoring:
   threshold: 4
-  title_terms:                # suman si aparecen en el TÍTULO
+  title_terms:                # added if they appear in the TITLE
     weight: 4
     patterns:
       - '\bgis\b'
@@ -108,7 +108,7 @@ scoring:
       - '\bcartograph\w*'
       - '\blidar\b'
       - '\bsatellite\b'
-  engineering_title_terms:    # suman si el título es de ingeniería/software
+  engineering_title_terms:    # added if the title is an engineering/software one
     weight: 2
     patterns:
       - '\bengineer\w*'
@@ -118,8 +118,8 @@ scoring:
       - '\bprogrammer\b'
       - '\bscientist\b'
       - '\barchitect\b'
-  geo_skill_weight: 1         # por cada skill de categoría geo detectada en la descripción
+  geo_skill_weight: 1         # per geo-category skill found in the description
   geo_skill_cap: 5
-  negative_terms:             # restan si aparecen en el título (vacío por ahora)
+  negative_terms:             # subtracted if they appear in the title (empty for now)
     weight: -4
     patterns: []

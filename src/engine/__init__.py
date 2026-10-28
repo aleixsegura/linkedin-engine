@@ -1,1 +1,1 @@
-"""Motor de búsqueda de ofertas geoespaciales en LinkedIn."""
+"""LinkedIn job search engine with a skills history."""

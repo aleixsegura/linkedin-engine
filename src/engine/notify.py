@@ -1,4 +1,4 @@
-"""Notificaciones nativas de macOS."""
+"""Native macOS notifications."""
 
 from __future__ import annotations
 

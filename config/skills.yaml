@@ -1,8 +1,8 @@
-# Taxonomía de skills: categoría -> { Nombre canónico: [patrones regex] }
-# Sin patrones (null) se busca el nombre literal con límites de palabra.
-# Los patrones se evalúan sin distinguir mayúsculas; usa (?-i:...) para términos
-# ambiguos que deben respetar mayúsculas (R, Go, C...).
-# Las categorías que empiezan por "geo_" cuentan para la puntuación de relevancia.
+# Skills taxonomy: category -> { Canonical name: [regex patterns] }
+# With no patterns (null) the literal name is matched with word boundaries.
+# Patterns are case-insensitive; use (?-i:...) for ambiguous terms that must
+# respect case (R, Go, C...).
+# Categories starting with "geo_" count towards the relevance score.
 
 geo_gis_desktop:
   ArcGIS: ['\barcgis\b(?!\s*(pro|online|enterprise|server))', '\besri\b']

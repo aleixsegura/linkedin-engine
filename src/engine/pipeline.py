@@ -1,4 +1,4 @@
-"""Orquestación de una ejecución completa del motor."""
+"""Orchestration of a full engine run."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def backup_db(conn: sqlite3.Connection, backups_dir: Path, keep: int, now: datet
 def find_original(
     conn: sqlite3.Connection, job_id: str, company_norm: str, title_norm: str, country: str | None, now: datetime
 ) -> str | None:
-    """Si la oferta es un repost de otra vista en los últimos 30 días, devuelve su canonical_id."""
+    """If the job is a repost of one seen in the last 30 days, return its canonical_id."""
     since = (now - timedelta(days=REPOST_WINDOW_DAYS)).isoformat()
     row = conn.execute(
         """SELECT canonical_id FROM jobs
@@ -61,7 +61,7 @@ def find_original(
 def collect_cards(
     source: Source, cfg: Config, max_queries: int | None
 ) -> dict[str, tuple[JobCard, set[tuple[str, str]]]]:
-    """Ejecuta todas las búsquedas y agrupa tarjetas por id."""
+    """Run every search and group cards by id."""
     combos = [(q, r, g) for q in cfg.queries for r, g in cfg.regions.items()]
     if max_queries is not None:
         combos = combos[:max_queries]
@@ -74,7 +74,7 @@ def collect_cards(
             entry[1].add((query, region))
             if card.country and not entry[0].country:
                 entry[0].country = card.country
-        log.info("[%d/%d] %s @ %s: %d resultados", i, len(combos), query, region, n)
+        log.info("[%d/%d] %s @ %s: %d results", i, len(combos), query, region, n)
     return cards
 
 
@@ -127,7 +127,7 @@ def _insert_new_job(
 
 
 def rescore(conn: sqlite3.Connection, cfg: Config) -> Counter[str]:
-    """Recalcula filtros, skills y relevancia de todas las ofertas guardadas con la config actual."""
+    """Re-apply filters, skills and relevance to every stored job using the current config."""
     outcomes: Counter[str] = Counter()
     rows = conn.execute("SELECT id, title, location, description FROM jobs").fetchall()
     for r in rows:
@@ -159,7 +159,7 @@ def run(
     *,
     max_queries: int | None = None,
 ) -> int:
-    """Ejecuta búsquedas, guarda ofertas nuevas y devuelve el id del run."""
+    """Run the searches, store new jobs and return the run id."""
     now = _now()
     run_id = conn.execute(
         "INSERT INTO runs (started_at, status) VALUES (?, 'running')", (now.isoformat(),)
@@ -180,7 +180,7 @@ def run(
                 outcomes[outcome or "visible"] += 1
                 new_ids.append(job_id)
                 if len(new_ids) % 25 == 0:
-                    log.info("Procesadas %d ofertas nuevas", len(new_ids))
+                    log.info("Processed %d new jobs", len(new_ids))
             conn.executemany(
                 "INSERT OR IGNORE INTO job_queries (job_id, query, region) VALUES (?, ?, ?)",
                 [(job_id, q, r) for q, r in hits],
@@ -192,7 +192,7 @@ def run(
             (_now().isoformat(), len(cards), outcomes["visible"], json.dumps(dict(outcomes)), run_id),
         )
         conn.commit()
-        log.info("Run %d: %d tarjetas, %d nuevas -> %s", run_id, len(cards), len(new_ids), dict(outcomes))
+        log.info("Run %d: %d cards, %d new -> %s", run_id, len(cards), len(new_ids), dict(outcomes))
         return run_id
     except BaseException as exc:
         conn.rollback()

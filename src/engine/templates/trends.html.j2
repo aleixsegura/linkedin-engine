@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tendencias de skills</title>
+<title>Skill trends</title>
 <style>
 {% include "_style.css.j2" %}
 .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 0 0 20px; height: 340px; }
@@ -16,35 +16,35 @@ tbody tr.sel td:first-child { font-weight: 600; color: var(--accent); }
 </head>
 <body>
 <main>
-  <h1>Tendencias de skills</h1>
-  <p class="sub">% de ofertas que mencionan cada skill · {{ n_jobs }} ofertas únicas en el histórico ·
-    <a href="latest.html">← Últimas ofertas</a></p>
+  <h1>Skill trends</h1>
+  <p class="sub">% of jobs mentioning each skill · {{ n_jobs }} unique jobs in the history ·
+    <a href="latest.html">← Latest jobs</a></p>
 
   <div class="bar" id="regions">
-    <button class="pill" data-region="" aria-pressed="true">Todas</button>
+    <button class="pill" data-region="" aria-pressed="true">All</button>
     <button class="pill" data-region="ES" aria-pressed="false">ES</button>
     <button class="pill" data-region="EU" aria-pressed="false">EU</button>
     <button class="pill" data-region="US" aria-pressed="false">US</button>
     <button class="pill" data-region="UK" aria-pressed="false">UK</button>
   </div>
   <div class="bar">
-    <select id="cat" aria-label="Categoría"><option value="">Todas las categorías</option></select>
-    <select id="win" aria-label="Ventana">
-      <option value="4">Últimas 4 semanas</option>
-      <option value="12">Últimas 12 semanas</option>
-      <option value="0">Todo el histórico</option>
+    <select id="cat" aria-label="Category"><option value="">All categories</option></select>
+    <select id="win" aria-label="Window">
+      <option value="4">Last 4 weeks</option>
+      <option value="12">Last 12 weeks</option>
+      <option value="0">All time</option>
     </select>
     <span class="muted" id="info"></span>
   </div>
 
-  <div class="chart-wrap"><canvas id="chart" aria-label="Evolución semanal"></canvas></div>
-  <p class="muted">Haz clic en una fila para añadirla o quitarla del gráfico. Δ = cambio en puntos porcentuales frente a la ventana anterior del mismo tamaño.</p>
+  <div class="chart-wrap"><canvas id="chart" aria-label="Weekly evolution"></canvas></div>
+  <p class="muted">Click a row to add it to or remove it from the chart. Δ = change in percentage points vs. the previous window of the same size.</p>
 
   <table>
-    <thead><tr><th>Skill</th><th>Categoría</th><th class="num">% ofertas</th><th class="num">Δ pp</th><th class="num">Ofertas</th></tr></thead>
+    <thead><tr><th>Skill</th><th>Category</th><th class="num">% jobs</th><th class="num">Δ pp</th><th class="num">Jobs</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
-  <p class="muted">Generado {{ generated }}</p>
+  <p class="muted">Generated {{ generated }}</p>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
@@ -82,7 +82,7 @@ const DATA = {{ data_json|safe }};
       .filter(r => r.n > 0 && (!cat || r.cat === cat))
       .sort((x, y) => y.pct - x.pct).slice(0, 40);
     if (selected === null) selected = new Set(rows.slice(0, 5).map(r => r.i));
-    document.getElementById("info").textContent = `${a.n} ofertas en la ventana · ${cur.length} semanas`;
+    document.getElementById("info").textContent = `${a.n} jobs in window · ${cur.length} weeks`;
     const max = rows.length ? rows[0].pct : 1;
     document.getElementById("rows").innerHTML = rows.map(r => {
       const d = r.prev === null ? "—" : (r.pct - r.prev).toFixed(1);

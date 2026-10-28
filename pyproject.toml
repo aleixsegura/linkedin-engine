@@ -1,7 +1,7 @@
 [project]
 name = "engine"
 version = "0.1.0"
-description = "Motor de búsqueda de ofertas geoespaciales en LinkedIn con histórico de skills"
+description = "LinkedIn job search engine with configurable searches, filtering, relevance scoring and a skills trend history"
 authors = [
     { name = "Aleix Segura", email = "aleixsegura29@gmail.com" }
 ]

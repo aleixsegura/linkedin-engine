@@ -1,4 +1,4 @@
-"""Fuente LinkedIn vía endpoints públicos "guest" (sin login)."""
+"""LinkedIn source via the public "guest" endpoints (no login)."""
 
 from __future__ import annotations
 
@@ -102,13 +102,13 @@ class LinkedInGuestSource:
             try:
                 resp = self.client.get(url, params=params)
             except httpx.HTTPError as exc:
-                log.warning("Error de red %s: %s", url, exc)
+                log.warning("Network error %s: %s", url, exc)
             else:
                 if resp.status_code == 200:
                     return resp.text
                 if resp.status_code in (400, 404):
                     return None
-                log.warning("HTTP %s en %s (intento %d)", resp.status_code, url, attempt + 1)
+                log.warning("HTTP %s on %s (attempt %d)", resp.status_code, url, attempt + 1)
             time.sleep(min(10 * 2**attempt, 120))
         return None
 
