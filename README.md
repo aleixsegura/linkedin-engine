@@ -1,30 +1,163 @@
 # linkedin-engine
 
-Busca ofertas geoespaciales (Geospatial/GIS engineering) en LinkedIn (ES, UE, US, UK), genera un informe HTML con las **nuevas** y mantiene un **histórico de skills** en SQLite.
+A small engine that searches LinkedIn job postings for the roles **you** care about, filters out the noise, ranks what's left, and keeps a **history of the skills** employers ask for.
 
-## Uso
+It ships configured for geospatial / GIS engineering roles (Spain, EU, US, UK), but every search term, region and limit can be changed in a personal config file. No LinkedIn account is needed: it uses LinkedIn's public "guest" job endpoints.
+
+Each run produces two HTML reports:
+
+- **`reports/latest.html`**: new jobs since the last run, with region and text filters, detected skills, seniority, remote/hybrid and visa-sponsorship flags.
+- **`reports/trends.html`**: how often each skill appears in job postings over time, by region and category.
+
+## How it works
+
+1. **Search.** Every query is searched in every region (LinkedIn `geoId`). The engine fetches up to `max_results_per_query` jobs posted within the configured time window.
+2. **Deduplicate.** Jobs already seen are skipped. Reposts (same company, normalized title and country within 30 days) are linked to the original.
+3. **Filter.** Jobs are hidden if the title matches an exclusion pattern, the description is in a language you don't accept, or it requires another language, security clearance or citizenship.
+4. **Score.** A rule-based relevance score adds points for title keywords and for "domain" skills found in the description. Jobs below the threshold are hidden.
+5. **Store & report.** Everything is stored in SQLite (`data/jobs.db`), including hidden jobs, so you can re-score the history after changing the config.
+
+## Requirements
+
+- Python 3.13+
+- [uv](https://docs.astral.sh/uv/)
+- macOS for desktop notifications and scheduling (optional; the engine itself runs anywhere)
+
+## Quick start
 
 ```bash
-uv run engine run            # busca (si han pasado ≥3 días), guarda y genera informes
-uv run engine run --force    # ignora el mínimo de días
-uv run engine report         # regenera el informe del último run
-uv run engine trends         # regenera reports/trends.html
-uv run pytest                # tests
+git clone https://github.com/aleixsegura/linkedin-engine.git
+cd linkedin-engine
+uv sync
+uv run engine init      # creates config/config.local.yaml, your personal profile
+# edit config/config.local.yaml: roles, regions, limits
+uv run engine config    # check the effective settings
+uv run engine run --open
 ```
 
-Informes: `reports/latest.html` (ofertas nuevas) y `reports/trends.html` (tendencias).
+## Configure your own search
 
-## Ejecución periódica
+Settings come from two layers:
+
+| File | Tracked in git | Purpose |
+| --- | --- | --- |
+| `config/config.yaml` | yes | Defaults (the geospatial profile) and every available option |
+| `config/config.local.yaml` | no | **Your** profile, merged on top of the defaults |
+| `config/skills.yaml` | yes | Skills taxonomy used for detection and trends |
+| `config/skills.local.yaml` | no | Extra skill categories or skills, merged on top |
+
+In the local file, nested settings are merged key by key; lists, single values and `regions` replace the default entirely. A minimal profile looks like this:
+
+```yaml
+# config/config.local.yaml
+queries:                      # roles / keywords to search
+  - Data Engineer
+  - Analytics Engineer
+
+regions:                      # label -> LinkedIn geoId
+  ES: 105646813
+  DE: 101282230
+
+search:
+  posted_within_seconds: 604800   # last 7 days
+  max_results_per_query: 50       # max jobs per query × region
+
+title_exclude:                # regex, case-insensitive
+  - '\bintern(ship)?\b'
+
+scoring:
+  threshold: 0                # 0 = show everything that passes the filters
+  title_terms:
+    weight: 4
+    patterns: ['\bdata\b']
+  domain_skill_categories: ['data_engineering', 'databases']
+```
+
+See [`config/config.local.example.yaml`](config/config.local.example.yaml) for a commented template and [`config/config.yaml`](config/config.yaml) for every option (language filters, clearance and sponsorship patterns, remote/hybrid detection, scoring weights).
+
+### Finding a geoId
+
+Search for jobs on linkedin.com, choose a location, and copy the `geoId=` value from the URL. Some common ones:
+
+| Location | geoId |
+| --- | --- |
+| Spain | 105646813 |
+| European Union | 91000000 |
+| United States | 103644278 |
+| United Kingdom | 101165590 |
+| Germany | 101282230 |
+| France | 105015875 |
+| Netherlands | 102890719 |
+| Worldwide | 92000000 |
+
+### Tuning relevance
+
+The score of a job is:
+
+- `title_terms.weight` if the title matches any of `title_terms.patterns`
+- `+ engineering_title_terms.weight` if the title matches any of those patterns
+- `+ negative_terms.weight` (usually negative) if the title matches any of those patterns
+- `+ domain_skill_weight` for each skill found in a category listed in `domain_skill_categories` (glob patterns such as `geo_*`), up to `domain_skill_cap`
+
+Jobs scoring below `threshold` are hidden as "low relevance". When starting with a new role, keep `threshold: 0`, look at a couple of reports, then add title patterns and raise it. After changing the config, run `uv run engine rescore` to re-apply it to the whole history.
+
+### Adding skills
+
+Add categories or skills in `config/skills.local.yaml`, using the same format as `config/skills.yaml`:
+
+```yaml
+data_engineering:
+  dbt: null                     # null = match the literal name
+  Dagster: null
+  Apache Iceberg: ['\biceberg\b']
+```
+
+## Usage
 
 ```bash
-scripts/install_launchd.sh   # tarea diaria a las 10:00; el motor se autolimita a cada 3 días
+uv run engine run                     # search (if the minimum days have passed), store, build reports
+uv run engine run --force             # ignore the minimum days between runs
+uv run engine run --open              # open the report when done
+
+# one-off searches without touching the config files
+uv run engine run --force -q "Frontend Engineer" -q "React Developer" -r ES=105646813 --max-results 30
+
+uv run engine config                  # show effective queries, regions and limits
+uv run engine report [RUN_ID]         # rebuild the new-jobs report (default: latest run)
+uv run engine trends                  # rebuild reports/trends.html
+uv run engine rescore                 # re-apply filters and scoring to the whole history
+uv run engine backup                  # back up the database (also done before every run)
+uv run pytest                         # run the tests
 ```
 
-Log en `~/Library/Logs/linkedin-engine.log`. Para que la notificación abra el informe al hacer clic: `brew install terminal-notifier`.
+`--max-results` is rounded up to LinkedIn's page size (10). Searching many queries × regions takes a while because requests are spaced out with random delays (`search.min_delay_seconds` / `max_delay_seconds`) to avoid rate limiting.
 
-## Configuración
+## Scheduled runs (macOS)
 
-- `config/config.yaml`: búsquedas, regiones, filtros (títulos excluidos, idiomas, clearance, sponsorship), puntuación de relevancia.
-- `config/skills.yaml`: taxonomía de skills. Las categorías `geo_*` cuentan para la relevancia.
+```bash
+scripts/install_launchd.sh        # run daily at 10:00
+scripts/install_launchd.sh 8      # or at another hour
+```
 
-Las ofertas ocultas (por título, idioma, clearance o baja relevancia) se guardan igualmente en `data/jobs.db`; las de idioma y clearance cuentan para el histórico.
+The engine only searches when at least `schedule.min_days_between_runs` days (default 3) have passed since the last successful run. Logs go to `~/Library/Logs/linkedin-engine.log`. Install `terminal-notifier` (`brew install terminal-notifier`) so that clicking the notification opens the report.
+
+## Project layout
+
+```text
+config/                 defaults, local profile template and skills taxonomy
+src/engine/
+  cli.py                command-line interface (Typer)
+  config.py             config loading and local overrides
+  pipeline.py           run orchestration, dedup, rescoring, backups
+  analysis.py           filters, language detection, skills, relevance score
+  report.py             HTML reports (Jinja2 templates in templates/)
+  sources/              job sources (LinkedIn guest endpoints)
+tests/                  unit tests with HTML fixtures
+scripts/                launchd installer
+```
+
+## Notes
+
+- Hidden jobs are still stored in `data/jobs.db`. Jobs hidden for language or clearance reasons still count towards the skill trends; jobs hidden for title, low relevance or missing description don't.
+- `data/`, `reports/`, `backups/` and your `*.local.yaml` files are git-ignored.
+- This project relies on undocumented public LinkedIn endpoints that may change or rate-limit at any time. Use it for personal job searching, at a moderate pace, and respect LinkedIn's terms of service.
