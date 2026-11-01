@@ -12,7 +12,9 @@ dependencies = [
     "langdetect>=1.0.9",
     "pyyaml>=6.0.3",
     "selectolax>=1.0.2",
+    "starlette>=1.10.0",
     "typer>=0.27.3",
+    "uvicorn>=0.54.0",
 ]
 
 [project.scripts]

@@ -1,10 +1,13 @@
-"""CLI: `engine run | report | trends | backup`."""
+"""CLI: `engine run | ui | report | trends | backup`."""
 
 from __future__ import annotations
 
 import logging
 import shutil
+import socket
 import subprocess
+import threading
+import webbrowser
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -159,3 +162,27 @@ def backup() -> None:
     """Manually back up the database."""
     cfg = load_config()
     typer.echo(pipeline.backup_db(db.connect(DB_PATH), BACKUPS_DIR, cfg.backups_keep, datetime.now(timezone.utc)))
+
+
+def _free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+@app.command()
+def ui(
+    port: Annotated[int, typer.Option(help="Port to listen on (default: a free one).")] = 0,
+    browser: Annotated[bool, typer.Option("--browser/--no-browser", help="Open the page in the browser.")] = True,
+) -> None:
+    """Start the local web UI (only reachable from this computer) and open it in the browser."""
+    import uvicorn
+
+    from engine.web import create_app
+
+    port = port or _free_port()
+    url = f"http://127.0.0.1:{port}/"
+    typer.echo(f"linkedin-engine is running at {url}\nKeep this window open while you use it; press Ctrl+C to stop.")
+    if browser:
+        threading.Timer(1.0, webbrowser.open, (url,)).start()
+    uvicorn.run(create_app(), host="127.0.0.1", port=port, log_level="warning")

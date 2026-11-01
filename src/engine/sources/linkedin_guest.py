@@ -90,6 +90,8 @@ class LinkedInGuestSource:
         self.min_delay = min_delay
         self.max_delay = max_delay
         self.max_retries = max_retries
+        # Requests that still failed after every retry (rate limiting or network errors).
+        self.failed_requests = 0
         self.client = httpx.Client(
             headers={"User-Agent": USER_AGENT, "Accept-Language": "en-US,en;q=0.9"},
             timeout=30,
@@ -110,6 +112,7 @@ class LinkedInGuestSource:
                     return None
                 log.warning("HTTP %s on %s (attempt %d)", resp.status_code, url, attempt + 1)
             time.sleep(min(10 * 2**attempt, 120))
+        self.failed_requests += 1
         return None
 
     def search(self, query: str, region: str, geo_id: int) -> Iterator[JobCard]:

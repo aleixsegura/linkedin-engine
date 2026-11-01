@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at TEXT NOT NULL,
     finished_at TEXT,
-    status TEXT NOT NULL,              -- running | ok | error
+    status TEXT NOT NULL,              -- running | ok | error | cancelled
     n_cards INTEGER DEFAULT 0,
     n_new INTEGER DEFAULT 0,
     n_hidden_json TEXT,

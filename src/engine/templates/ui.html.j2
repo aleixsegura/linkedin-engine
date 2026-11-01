@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job search</title>
+<style>
+{% include "_style.css.j2" %}
+.search-form { padding: 18px 20px; margin: 0 0 16px; display: grid; gap: 16px; }
+.field > .label { display: block; font-weight: 600; font-size: 14px; margin: 0 0 6px; }
+.help { display: block; color: var(--muted); font-size: 13px; margin-top: 4px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid var(--border);
+  border-radius: 4px; padding: 6px; background: var(--surface); }
+.tags:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
+.tags input { border: 0; outline: 0; flex: 1 1 180px; padding: 4px; background: transparent; }
+.tag { display: inline-flex; align-items: center; gap: 4px; background: var(--accent-soft); color: var(--accent);
+  border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 14px; font-weight: 600; }
+.tag button { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; border-radius: 999px;
+  width: 22px; height: 22px; line-height: 1; }
+.tag button:hover { background: var(--surface); }
+.suggestions { margin-top: 8px; }
+.suggestions .pill { font-size: 13px; padding: 3px 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.check input { margin-top: 3px; }
+details.advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600; margin-top: 8px; }
+details.advanced .bar { margin: 8px 0 0; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.status { padding: 14px 18px; margin: 0 0 16px; }
+.status p { margin: 0 0 8px; font-weight: 600; }
+.status progress { width: 100%; height: 6px; appearance: none; border: 0; border-radius: 3px; background: var(--chip); overflow: hidden; }
+.status progress::-webkit-progress-bar { background: var(--chip); }
+.status progress::-webkit-progress-value { background: var(--accent); }
+.status progress::-moz-progress-bar { background: var(--accent); }
+.counters { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; color: var(--muted); font-size: 13px; }
+.alert { border-radius: 8px; padding: 10px 14px; margin: 0 0 12px; font-size: 14px; }
+.alert.error { background: var(--danger-soft); color: var(--danger); }
+.alert.warn { background: var(--warn-soft); color: var(--warn); }
+.alert.ok { background: var(--ok-soft); color: var(--ok); }
+.done-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Find jobs</h1>
+  <p class="sub">Searches LinkedIn's public job listings from your computer and shows new jobs as they're found.
+    <a href="reports/trends.html" id="trends-link" hidden>See skill trends →</a></p>
+
+  <form class="search-form panel" id="form" novalidate>
+    <div class="field">
+      <label class="label" for="role-input">Roles</label>
+      <div class="tags" id="roles">
+        <input id="role-input" type="text" placeholder="Type a role and press Enter, e.g. Data Engineer" autocomplete="off">
+      </div>
+      <div class="suggestions bar" id="suggestions" role="group" aria-label="Suggested roles"></div>
+    </div>
+
+    <div class="field">
+      <span class="label" id="regions-label">Where</span>
+      <div class="bar" id="regions" role="group" aria-labelledby="regions-label" style="margin: 0"></div>
+      <details class="advanced">
+        <summary>Advanced: add a location by LinkedIn geoId</summary>
+        <div class="bar">
+          <input type="text" id="custom-label" placeholder="Name, e.g. BCN" aria-label="Location name" style="width: 9em">
+          <input type="text" id="custom-geo" placeholder="geoId, e.g. 90009761" inputmode="numeric" aria-label="LinkedIn geoId" style="width: 11em">
+          <button type="button" class="btn secondary" id="custom-add">Add</button>
+        </div>
+        <span class="help muted">On linkedin.com, search jobs in a location and copy the <code>geoId=</code> value from the address bar.</span>
+      </details>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label class="label" for="posted">Posted within</label>
+        <select id="posted"><option value="1">Past 24 hours</option><option value="7">Past week</option><option value="30">Past month</option></select>
+      </div>
+      <div class="field">
+        <label class="label" for="max">Jobs per role and location</label>
+        <select id="max"><option>10</option><option>25</option><option>50</option><option>100</option></select>
+      </div>
+    </div>
+
+    <div>
+      <label class="check"><input type="checkbox" id="profile-filters">
+        <span>Only show jobs that match my profile's relevance rules
+          <span class="help muted" id="profile-filters-help"></span></span></label>
+      <label class="check"><input type="checkbox" id="save">
+        <span>Save these choices as my default search
+          <span class="help muted">Used next time and by <code>engine run</code> (writes config/config.local.yaml).</span></span></label>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn" id="search-btn">Search</button>
+      <button type="button" class="btn secondary" id="cancel-btn" hidden>Cancel</button>
+    </div>
+  </form>
+
+  <div id="messages" aria-live="polite"></div>
+
+  <section class="status panel" id="status" hidden aria-label="Search progress">
+    <p id="status-text" aria-live="polite"></p>
+    <progress id="progress" max="100" value="0"></progress>
+    <div class="counters"><span id="c-found"></span><span id="c-shown"></span><span id="c-hidden"></span></div>
+    <div class="done-links" id="done-links" hidden>
+      <a class="btn" href="reports/latest.html" target="_blank" rel="noopener">Open full report</a>
+      <a class="btn secondary" href="reports/trends.html" target="_blank" rel="noopener">Skill trends</a>
+    </div>
+  </section>
+
+  <div id="jobs">
+{% include "_jobs.html.j2" %}
+  </div>
+</main>
+<script>
+{% include "_jobs.js.j2" %}
+const BOOT = {{ bootstrap_json|safe }};
+(() => {
+  const $ = id => document.getElementById(id);
+  const profile = BOOT.profile;
+  const view = JobsView($("jobs"), { emptyText: "Jobs will appear here as they're found." });
+  let roles = [], regions = [], filtersTouched = false, running = false;
+
+  // Roles: free text tags plus suggestions.
+  const sameRoles = () => roles.length === profile.queries.length
+    && roles.every(r => profile.queries.some(q => q.toLowerCase() === r.toLowerCase()));
+  function renderRoles() {
+    const input = $("role-input");
+    // Replace only the tags: re-inserting the input would drop its focus.
+    $("roles").querySelectorAll(".tag").forEach(t => t.remove());
+    input.before(...roles.map(r => {
+      const rm = document.createElement("button");
+      rm.type = "button"; rm.textContent = "×"; rm.setAttribute("aria-label", `Remove ${r}`);
+      rm.addEventListener("click", () => { roles = roles.filter(x => x !== r); renderRoles(); input.focus(); });
+      const tag = document.createElement("span");
+      tag.className = "tag"; tag.append(r, rm);
+      return tag;
+    }));
+    const suggestions = BOOT.suggestions.filter(s => !roles.some(r => r.toLowerCase() === s.toLowerCase()));
+    $("suggestions").replaceChildren(...suggestions.map(s => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "pill"; b.textContent = `+ ${s}`;
+      b.addEventListener("click", () => addRole(s));
+      return b;
+    }));
+    if (!filtersTouched) $("profile-filters").checked = sameRoles();
+  }
+  function addRole(value) {
+    const r = value.trim();
+    if (r && !roles.some(x => x.toLowerCase() === r.toLowerCase())) roles.push(r);
+    renderRoles();
+  }
+  $("role-input").addEventListener("keydown", e => {
+    if ((e.key === "Enter" || e.key === ",") && e.target.value.trim()) {
+      e.preventDefault(); addRole(e.target.value); e.target.value = "";
+    } else if (e.key === "Backspace" && !e.target.value && roles.length) {
+      roles.pop(); renderRoles();
+    }
+  });
+  $("role-input").addEventListener("blur", e => { if (e.target.value.trim()) { addRole(e.target.value); e.target.value = ""; } });
+
+  // Regions: catalog toggles plus custom geoIds.
+  const catalog = [...BOOT.catalog];
+  function renderRegions() {
+    $("regions").replaceChildren(...catalog.map(c => {
+      const on = regions.some(r => r.geo_id === c.geo_id);
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "pill"; b.setAttribute("aria-pressed", String(on));
+      b.textContent = c.name; b.title = `${c.label} · geoId ${c.geo_id}`;
+      b.addEventListener("click", () => {
+        regions = on ? regions.filter(r => r.geo_id !== c.geo_id) : [...regions, { label: c.label, geo_id: c.geo_id }];
+        renderRegions();
+      });
+      return b;
+    }));
+  }
+  $("custom-add").addEventListener("click", () => {
+    const label = $("custom-label").value.trim(), geo = $("custom-geo").value.trim();
+    if (!label || !/^\d+$/.test(geo)) { message("error", "Enter a name and a numeric geoId."); return; }
+    const geo_id = +geo;
+    if (!catalog.some(c => c.geo_id === geo_id)) catalog.push({ label, name: label, geo_id });
+    if (!regions.some(r => r.geo_id === geo_id)) regions.push({ label, geo_id });
+    $("custom-label").value = $("custom-geo").value = "";
+    renderRegions();
+  });
+
+  // Initial values from the profile.
+  roles = [...profile.queries];
+  regions = profile.regions.map(r => ({ ...r }));
+  for (const r of regions) {
+    if (!catalog.some(c => c.geo_id === r.geo_id)) catalog.push({ label: r.label, name: r.label, geo_id: r.geo_id });
+  }
+  const setSelect = (sel, value) => {
+    if (![...sel.options].some(o => o.value === String(value))) sel.add(new Option(String(value) + (sel.id === "posted" ? " days" : ""), value));
+    sel.value = String(value);
+  };
+  setSelect($("posted"), profile.posted_within_days);
+  setSelect($("max"), profile.max_results);
+  $("profile-filters").addEventListener("change", () => { filtersTouched = true; });
+  $("profile-filters-help").textContent = profile.has_local_config
+    ? "Uses the title exclusions and relevance threshold of your saved profile. Turn off to see every job for these roles."
+    : "The built-in profile is tuned for geospatial roles. Leave this off when searching for other roles.";
+  if (BOOT.has_reports) $("trends-link").hidden = false;
+  renderRoles();
+  renderRegions();
+
+  // Messages and progress.
+  function message(kind, text) {
+    const div = document.createElement("div");
+    div.className = `alert ${kind}`; div.setAttribute("role", kind === "error" ? "alert" : "status");
+    div.textContent = text;
+    $("messages").append(div);
+  }
+  let state;
+  function counters() {
+    $("c-found").textContent = `${state.found} found`;
+    $("c-shown").textContent = `${state.shown} shown`;
+    $("c-hidden").textContent = `${state.hidden} hidden`;
+  }
+  function setRunning(on) {
+    running = on;
+    $("search-btn").disabled = on;
+    $("search-btn").textContent = on ? "Searching…" : "Search";
+    $("cancel-btn").hidden = !on;
+  }
+
+  const handlers = {
+    progress(e) {
+      if (e.stage === "start") { state.searches = e.searches; $("status-text").textContent = "Starting…"; return; }
+      state.found = e.found;
+      $("status-text").textContent = `Searching “${e.query}” in ${e.region} · ${e.index}/${e.total} searches`;
+      $("progress").value = 30 * (e.index - 1) / e.total;
+      counters();
+    },
+    job(e) { state.shown++; view.add(e.job); assessing(e); },
+    hidden(e) { state.hidden++; assessing(e); },
+    warning(e) {
+      if (!state.warning) { message("warn", ""); state.warning = $("messages").lastElementChild; }
+      state.warning.textContent = e.message;
+    },
+    done(e) {
+      state.found = e.n_cards;
+      counters();
+      $("progress").value = 100;
+      $("status-text").textContent = e.n_new
+        ? `Done: ${e.n_new} new ${e.n_new === 1 ? "job" : "jobs"} out of ${e.n_cards} results.`
+        : (e.n_cards ? `Done: no new relevant jobs among ${e.n_cards} results.` : "Done: LinkedIn returned no results for this search.");
+      const hidden = Object.entries(e.hidden).map(([label, n]) => `${n} ${label}`).join(" · ");
+      view.hint(hidden ? `Hidden: ${hidden}` : "");
+      $("done-links").hidden = false;
+      $("trends-link").hidden = false;
+    },
+    cancelled() { $("status-text").textContent = "Search cancelled. Jobs found so far are kept in your history."; },
+    error(e) { message("error", e.message); $("status-text").textContent = "The search stopped because of an error."; },
+  };
+  function assessing(e) {
+    state.found = Math.max(state.found, e.total);
+    $("status-text").textContent = `Checking new jobs · ${e.index}/${e.total}`;
+    $("progress").value = 30 + 70 * e.index / e.total;
+    counters();
+  }
+
+  async function search() {
+    $("messages").replaceChildren();
+    if (!roles.length) { message("error", "Add at least one role."); $("role-input").focus(); return; }
+    if (!regions.length) { message("error", "Choose at least one location."); return; }
+    const body = {
+      queries: roles, regions, max_results: +$("max").value, posted_within_days: +$("posted").value,
+      use_profile_filters: $("profile-filters").checked, save: $("save").checked,
+    };
+    state = { found: 0, shown: 0, hidden: 0 };
+    view.clear(); view.hint("");
+    $("status").hidden = false; $("done-links").hidden = true;
+    $("status-text").textContent = "Starting…"; $("progress").value = 0; counters();
+    setRunning(true);
+    try {
+      const resp = await fetch("api/search", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: `Error ${resp.status}` }));
+        message("error", err.error); $("status").hidden = true; return;
+      }
+      if (body.save) { profile.queries = [...roles]; profile.has_local_config = true; }
+      const reader = resp.body.pipeThrough(new TextDecoderStream()).getReader();
+      let buf = "", ended = false;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += value;
+        let i;
+        while ((i = buf.indexOf("\n\n")) >= 0) {
+          const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+          const data = chunk.split("\n").filter(l => l.startsWith("data: ")).map(l => l.slice(6)).join("\n");
+          if (!data) continue;
+          const event = JSON.parse(data);
+          if (["done", "cancelled", "error"].includes(event.type)) ended = true;
+          handlers[event.type]?.(event);
+        }
+      }
+      if (!ended) handlers.error({ message: "Lost the connection to the local server. Is it still running?" });
+    } catch (err) {
+      handlers.error({ message: `Couldn't reach the local server (${err.message}). Is it still running?` });
+    } finally {
+      setRunning(false);
+    }
+  }
+  $("form").addEventListener("submit", e => { e.preventDefault(); if (!running) search(); });
+  $("cancel-btn").addEventListener("click", () => {
+    $("status-text").textContent = "Cancelling…";
+    fetch("api/cancel", { method: "POST" });
+  });
+})();
+</script>
+</body>
+</html>

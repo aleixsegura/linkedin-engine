@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import threading
 from collections import Counter
+from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -58,23 +60,48 @@ def find_original(
     return row["canonical_id"] if row else None
 
 
-def collect_cards(
-    source: Source, cfg: Config, max_queries: int | None
-) -> dict[str, tuple[JobCard, set[tuple[str, str]]]]:
-    """Run every search and group cards by id."""
+class Cancelled(Exception):
+    """Raised inside a run when its cancel event is set."""
+
+
+def _check(cancel: threading.Event | None) -> None:
+    if cancel is not None and cancel.is_set():
+        raise Cancelled()
+
+
+def _search_events(
+    source: Source,
+    cfg: Config,
+    max_queries: int | None,
+    cards: dict[str, tuple[JobCard, set[tuple[str, str]]]],
+    cancel: threading.Event | None = None,
+) -> Iterator[dict]:
+    """Run every search, grouping cards by id into `cards`, and yield a progress event per search."""
     combos = [(q, r, g) for q in cfg.queries for r, g in cfg.regions.items()]
     if max_queries is not None:
         combos = combos[:max_queries]
-    cards: dict[str, tuple[JobCard, set[tuple[str, str]]]] = {}
     for i, (query, region, geo_id) in enumerate(combos, 1):
+        _check(cancel)
+        yield {"type": "search", "index": i, "total": len(combos), "query": query, "region": region,
+               "found": len(cards)}
         n = 0
         for card in source.search(query, region, geo_id):
+            _check(cancel)
             n += 1
             entry = cards.setdefault(card.id, (card, set()))
             entry[1].add((query, region))
             if card.country and not entry[0].country:
                 entry[0].country = card.country
         log.info("[%d/%d] %s @ %s: %d results", i, len(combos), query, region, n)
+
+
+def collect_cards(
+    source: Source, cfg: Config, max_queries: int | None
+) -> dict[str, tuple[JobCard, set[tuple[str, str]]]]:
+    """Run every search and group cards by id."""
+    cards: dict[str, tuple[JobCard, set[tuple[str, str]]]] = {}
+    for _ in _search_events(source, cfg, max_queries, cards):
+        pass
     return cards
 
 
@@ -152,32 +179,59 @@ def rescore(conn: sqlite3.Connection, cfg: Config) -> Counter[str]:
     return outcomes
 
 
-def run(
+def run_events(
     conn: sqlite3.Connection,
     source: Source,
     cfg: Config,
     *,
     max_queries: int | None = None,
-) -> int:
-    """Run the searches, store new jobs and return the run id."""
+    cancel: threading.Event | None = None,
+) -> Iterator[dict]:
+    """Run the searches and store new jobs, yielding events as the run progresses.
+
+    Events are dicts with a `type`: `start`, `search` (a search begins), `job` (a new job was
+    stored; `outcome` is "visible" or the hidden reason), `warning` (requests that failed after
+    every retry, usually rate limiting) and finally `done` with the run summary. Setting `cancel`
+    stops the run at the next step and raises `Cancelled`; the run is recorded as cancelled.
+    """
     now = _now()
     run_id = conn.execute(
         "INSERT INTO runs (started_at, status) VALUES (?, 'running')", (now.isoformat(),)
     ).lastrowid
     conn.commit()
+    failed = getattr(source, "failed_requests", 0)
+
+    def warnings() -> Iterator[dict]:
+        nonlocal failed
+        current = getattr(source, "failed_requests", 0)
+        if current > failed:
+            yield {"type": "warning", "failed_requests": current,
+                   "message": f"LinkedIn didn't answer {current} request(s) after retrying "
+                              "(probably rate limiting); results may be incomplete."}
+            failed = current
+
     try:
-        cards = collect_cards(source, cfg, max_queries)
+        n_searches = len(cfg.queries) * len(cfg.regions)
+        if max_queries is not None:
+            n_searches = min(n_searches, max_queries)
+        yield {"type": "start", "run_id": run_id, "searches": n_searches}
+        cards: dict[str, tuple[JobCard, set[tuple[str, str]]]] = {}
+        for event in _search_events(source, cfg, max_queries, cards, cancel):
+            yield from warnings()
+            yield event
+        yield from warnings()
         outcomes: Counter[str] = Counter()
         new_ids = []
+        to_assess = {i for i in cards if not conn.execute("SELECT 1 FROM jobs WHERE id = ?", (i,)).fetchone()}
         for job_id, (card, hits) in cards.items():
-            exists = conn.execute("SELECT 1 FROM jobs WHERE id = ?", (job_id,)).fetchone()
-            if exists:
+            _check(cancel)
+            if job_id not in to_assess:
                 conn.execute("UPDATE jobs SET last_seen = ? WHERE id = ?", (now.isoformat(), job_id))
             else:
                 search_region = sorted(hits, key=lambda h: h[1] == "EU")[0][1]
                 region = analysis.region_for(card.country, search_region, cfg.regions)
-                outcome = _insert_new_job(conn, source, cfg, card, region, run_id, now)
-                outcomes[outcome or "visible"] += 1
+                outcome = _insert_new_job(conn, source, cfg, card, region, run_id, now) or "visible"
+                outcomes[outcome] += 1
                 new_ids.append(job_id)
                 if len(new_ids) % 25 == 0:
                     log.info("Processed %d new jobs", len(new_ids))
@@ -186,6 +240,10 @@ def run(
                 [(job_id, q, r) for q, r in hits],
             )
             conn.commit()
+            if job_id in to_assess:
+                yield from warnings()
+                yield {"type": "job", "id": job_id, "outcome": outcome, "index": len(new_ids),
+                       "total": len(to_assess)}
         conn.execute(
             """UPDATE runs SET finished_at = ?, status = 'ok', n_cards = ?, n_new = ?, n_hidden_json = ?
                WHERE id = ?""",
@@ -193,12 +251,30 @@ def run(
         )
         conn.commit()
         log.info("Run %d: %d cards, %d new -> %s", run_id, len(cards), len(new_ids), dict(outcomes))
-        return run_id
     except BaseException as exc:
+        cancelled = isinstance(exc, (Cancelled, GeneratorExit))
         conn.rollback()
         conn.execute(
-            "UPDATE runs SET finished_at = ?, status = 'error', error = ? WHERE id = ?",
-            (_now().isoformat(), repr(exc), run_id),
+            "UPDATE runs SET finished_at = ?, status = ?, error = ? WHERE id = ?",
+            (_now().isoformat(), "cancelled" if cancelled else "error", None if cancelled else repr(exc), run_id),
         )
         conn.commit()
         raise
+    hidden = {k: v for k, v in outcomes.items() if k != "visible"}
+    yield {"type": "done", "run_id": run_id, "n_cards": len(cards), "n_new": outcomes["visible"], "hidden": hidden}
+
+
+def run(
+    conn: sqlite3.Connection,
+    source: Source,
+    cfg: Config,
+    *,
+    max_queries: int | None = None,
+) -> int:
+    """Run the searches, store new jobs and return the run id."""
+    for event in run_events(conn, source, cfg, max_queries=max_queries):
+        if event["type"] == "warning":
+            log.warning(event["message"])
+        elif event["type"] == "done":
+            return event["run_id"]
+    raise AssertionError("run_events ended without a done event")

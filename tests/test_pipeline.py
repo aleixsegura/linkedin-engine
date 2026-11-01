@@ -118,3 +118,49 @@ def test_cli_overrides(cfg):
     assert cfg.max_results_per_query == 20
     with pytest.raises(typer.BadParameter):
         _apply_overrides(cfg, None, ["Germany"], None)
+
+
+def test_run_events_stream_progress_jobs_and_summary(conn, cfg):
+    cfg.regions = {"ES": 105646813, "EU": 91000000}
+    src = FakeSource(
+        {"ES": [card("1", "Geospatial Engineer"), card("2", "GIS Analyst")]},
+        {"1": JobDetail(GEO, None, None)},
+    )
+    events = list(pipeline.run_events(conn, src, cfg))
+    types = [e["type"] for e in events]
+    assert types == ["start", "search", "search", "job", "job", "done"]
+    assert events[0]["searches"] == 2
+    assert [(e["query"], e["region"], e["index"]) for e in events[1:3]] == [
+        ("Geospatial Engineer", "ES", 1), ("Geospatial Engineer", "EU", 2)]
+    assert {e["id"]: e["outcome"] for e in events[3:5]} == {"1": "visible", "2": "title"}
+    assert events[4]["index"] == events[4]["total"] == 2
+    assert events[-1] == {"type": "done", "run_id": events[0]["run_id"], "n_cards": 2, "n_new": 1,
+                          "hidden": {"title": 1}}
+
+
+def test_run_events_cancel_records_cancelled_run(conn, cfg):
+    import threading
+
+    cancel = threading.Event()
+    src = FakeSource({"ES": [card("1", "Geospatial Engineer")]}, {"1": JobDetail(GEO, None, None)})
+    events = pipeline.run_events(conn, src, cfg, cancel=cancel)
+    assert next(events)["type"] == "start"
+    cancel.set()
+    with pytest.raises(pipeline.Cancelled):
+        next(events)
+    assert conn.execute("SELECT status FROM runs").fetchone()["status"] == "cancelled"
+
+
+def test_run_events_warns_about_failed_requests(conn, cfg):
+    class Throttled(FakeSource):
+        failed_requests = 0
+
+        def search(self, query, region, geo_id):
+            self.failed_requests += 1
+            return iter(())
+
+    events = list(pipeline.run_events(conn, Throttled({}, {}), cfg))
+    warnings = [e for e in events if e["type"] == "warning"]
+    assert [w["failed_requests"] for w in warnings] == [1, 2, 3, 4]  # one per search that lost requests
+    assert "rate limiting" in warnings[-1]["message"]
+    assert events[-1]["type"] == "done" and events[-1]["n_cards"] == 0
