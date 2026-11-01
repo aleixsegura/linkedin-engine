@@ -27,13 +27,16 @@ You can use it from a **local web page** (no command line needed: pick roles and
 
 The easiest way to use it. Everything runs on your computer: searches go from your own connection to LinkedIn, at your own pace, and the page is only reachable from your machine (`127.0.0.1`).
 
-1. [Download the project](https://github.com/aleixsegura/linkedin-engine/archive/refs/heads/main.zip) and unzip it (or `git clone` it).
-2. Double-click the launcher:
-   - **macOS**: `Start linkedin-engine.command`. The first time, macOS may refuse to open a downloaded script: right-click it → **Open** → **Open**.
-   - **Windows**: `Start linkedin-engine.bat`.
+1. Start it (the first `uv run` installs the dependencies):
 
-   It installs [uv](https://docs.astral.sh/uv/) if needed (which downloads Python), installs the dependencies and opens the search page in your browser. Keep the window open while you use it; close it to stop.
-3. Type or pick the roles you're interested in, choose locations, how recent the jobs should be and how many to fetch, and click **Search**.
+   ```bash
+   git clone https://github.com/aleixsegura/linkedin-engine.git
+   cd linkedin-engine
+   uv run engine ui                 # opens http://127.0.0.1:<free port>/ in your browser
+   ```
+
+   Keep the terminal open while you use it; press Ctrl+C to stop.
+2. Type or pick the roles you're interested in, choose locations, how recent the jobs should be and how many to fetch, and click **Search**.
 
 Jobs appear one by one as they're fetched and checked, with progress and a **Cancel** button. When the search ends you get links to the full report and the skill trends. Searches from the web UI are stored in the same history as CLI runs.
 
@@ -42,12 +45,7 @@ Two options on the form:
 - **Only show jobs that match my profile's relevance rules**: applies the title exclusions and relevance threshold from your config. The built-in profile is tuned for geospatial roles, so this is turned off automatically when you search for other roles; it's turned on when the roles match your saved profile.
 - **Save these choices as my default search**: writes the roles, locations and limits to `config/config.local.yaml`, so they're preselected next time and used by `engine run` and scheduled runs.
 
-From a terminal, the same page starts with:
-
-```bash
-uv run engine ui                 # opens http://127.0.0.1:<free port>/ in your browser
-uv run engine ui --port 8765 --no-browser
-```
+To use a fixed port or not open the browser: `uv run engine ui --port 8765 --no-browser`.
 
 Only one search runs at a time, so the request volume stays the same as a single CLI run.
 
@@ -184,7 +182,6 @@ src/engine/
   sources/              job sources (LinkedIn guest endpoints)
 tests/                  unit tests with HTML fixtures
 scripts/                launchd installer
-Start linkedin-engine.*  double-click launchers for the web UI (macOS .command, Windows .bat)
 ```
 
 ## Notes
