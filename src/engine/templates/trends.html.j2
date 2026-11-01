@@ -6,9 +6,13 @@
 <title>Skill trends</title>
 <style>
 {% include "_style.css.j2" %}
-.chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 0 0 20px; height: 340px; }
+.chart-wrap { padding: 16px; margin: 0 0 12px; height: 340px; }
+.table-wrap { padding: 4px 8px; overflow-x: auto; }
+tbody tr:hover { background: var(--surface-2); }
+td .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: baseline; }
 tbody tr { cursor: pointer; }
 tbody tr.sel td:first-child { font-weight: 600; color: var(--accent); }
+tbody tr:focus-visible { outline-offset: -2px; }
 .barcell { position: relative; }
 .barfill { position: absolute; left: 0; top: 6px; bottom: 6px; background: var(--accent-soft); border-radius: 4px; z-index: 0; }
 .barcell span { position: relative; z-index: 1; }
@@ -20,9 +24,10 @@ tbody tr.sel td:first-child { font-weight: 600; color: var(--accent); }
   <p class="sub">% of jobs mentioning each skill · {{ n_jobs }} unique jobs in the history ·
     <a href="latest.html">← Latest jobs</a></p>
 
-  <div class="bar" id="regions">
-    <button class="pill" data-region="" aria-pressed="true">All</button>
-    {% for region in regions %}<button class="pill" data-region="{{ region }}" aria-pressed="false">{{ region }}</button>{% endfor %}
+  <div class="panel filters">
+  <div class="bar" id="regions" role="group" aria-label="Region">
+    <button type="button" class="pill" data-region="" aria-pressed="true">All regions</button>
+    {% for region in regions %}<button type="button" class="pill" data-region="{{ region }}" aria-pressed="false">{{ region }}</button>{% endfor %}
   </div>
   <div class="bar">
     <select id="cat" aria-label="Category"><option value="">All categories</option></select>
@@ -33,14 +38,17 @@ tbody tr.sel td:first-child { font-weight: 600; color: var(--accent); }
     </select>
     <span class="muted" id="info"></span>
   </div>
+  </div>
 
-  <div class="chart-wrap"><canvas id="chart" aria-label="Weekly evolution"></canvas></div>
-  <p class="muted">Click a row to add it to or remove it from the chart. Δ = change in percentage points vs. the previous window of the same size.</p>
+  <div class="chart-wrap panel"><canvas id="chart" aria-label="Weekly evolution"></canvas></div>
+  <p class="muted">Click a row (or focus it and press Enter) to add it to or remove it from the chart. Δ = change in percentage points vs. the previous window of the same size.</p>
 
+  <div class="table-wrap panel">
   <table>
     <thead><tr><th>Skill</th><th>Category</th><th class="num">% jobs</th><th class="num">Δ pp</th><th class="num">Jobs</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
+  </div>
   <p class="muted">Generated {{ generated }}</p>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -55,7 +63,9 @@ const DATA = {{ data_json|safe }};
   let region = "", selected = null, chart = null;
 
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const palette = ["#1f6f5c", "#c2672b", "#3b6fb6", "#a1479a", "#7a8b1f", "#b8434f", "#2f8f9d", "#8a6d3b"];
+  const palette = () => [1, 2, 3, 4, 5, 6, 7, 8].map(i => css(`--series-${i}`));
+  const esc = v => String(v).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const colorOf = i => { const p = palette(); return p[[...selected].indexOf(i) % p.length]; };
 
   function counts(ws) {
     const set = new Set(ws), c = new Array(skills.length).fill(0);
@@ -84,23 +94,30 @@ const DATA = {{ data_json|safe }};
     document.getElementById("rows").innerHTML = rows.map(r => {
       const d = r.prev === null ? "—" : (r.pct - r.prev).toFixed(1);
       const cls = r.prev === null ? "" : (r.pct - r.prev > 0.5 ? "up" : (r.pct - r.prev < -0.5 ? "down" : ""));
-      return `<tr data-i="${r.i}" class="${selected.has(r.i) ? "sel" : ""}"><td>${r.name}</td><td class="muted">${r.cat}</td>
+      const sel = selected.has(r.i);
+      const swatch = sel ? `<span class="swatch" style="background:${colorOf(r.i)}"></span>` : "";
+      return `<tr data-i="${r.i}" class="${sel ? "sel" : ""}" tabindex="0" aria-selected="${sel}"><td>${swatch}${esc(r.name)}</td><td class="muted">${esc(r.cat)}</td>
         <td class="num barcell"><div class="barfill" style="width:${(r.pct / max * 100).toFixed(0)}%"></div><span>${r.pct.toFixed(1)}%</span></td>
         <td class="num ${cls}">${d === "—" ? d : (d > 0 ? "+" + d : d)}</td><td class="num">${r.n}</td></tr>`;
     }).join("");
-    document.querySelectorAll("#rows tr").forEach(tr => tr.addEventListener("click", () => {
-      const i = +tr.dataset.i;
-      selected.has(i) ? selected.delete(i) : selected.add(i);
-      render();
-    }));
+    document.querySelectorAll("#rows tr").forEach(tr => {
+      const toggle = () => {
+        const i = +tr.dataset.i;
+        selected.has(i) ? selected.delete(i) : selected.add(i);
+        render();
+        document.querySelector(`#rows tr[data-i="${i}"]`)?.focus();
+      };
+      tr.addEventListener("click", toggle);
+      tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+    });
     drawChart(cur);
   }
 
   function drawChart(ws) {
     if (!window.Chart) return;
     const per = ws.map(w => counts([w]));
-    const datasets = [...selected].map((i, k) => ({
-      label: skills[i][0], borderColor: palette[k % palette.length], backgroundColor: palette[k % palette.length],
+    const datasets = [...selected].map(i => ({
+      label: skills[i][0], borderColor: colorOf(i), backgroundColor: colorOf(i), borderWidth: 2,
       data: per.map(p => p.n ? +(100 * p.c[i] / p.n).toFixed(1) : null), tension: 0.25, spanGaps: true,
     }));
     const grid = css("--border"), text = css("--muted");
@@ -121,6 +138,7 @@ const DATA = {{ data_json|safe }};
   }));
   catSel.addEventListener("change", () => { selected = null; render(); });
   winSel.addEventListener("change", render);
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
   render();
 })();
 </script>

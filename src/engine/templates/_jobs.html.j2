@@ -1,0 +1,22 @@
+<section class="filters panel" aria-label="Filters">
+  <div class="bar" data-role="regions" role="group" aria-label="Region"></div>
+  <div class="bar">
+    <input type="search" data-role="q" placeholder="Search by title, company, location or skill" aria-label="Search jobs">
+    <label>Workplace
+      <select data-role="workplace">
+        <option value="">Any</option><option value="remote">Remote</option>
+        <option value="hybrid">Hybrid</option><option value="none">Not specified</option>
+      </select>
+    </label>
+    <label>Seniority <select data-role="seniority"><option value="">Any</option></select></label>
+    <label>Min. relevance <input type="number" data-role="min" min="0" step="1" value="0" style="width: 4.5em"></label>
+    <label>Sort
+      <select data-role="sort"><option value="relevance">Most relevant</option><option value="recent">Most recent</option></select>
+    </label>
+  </div>
+</section>
+<section class="jobs panel" aria-label="Jobs">
+  <div class="jobs-head"><h2 data-role="count" aria-live="polite">Jobs</h2><span class="muted" data-role="hint"></span></div>
+  <ul class="job-list" data-role="list"></ul>
+  <div class="detail" data-role="detail" tabindex="-1" aria-label="Job details"></div>
+</section>

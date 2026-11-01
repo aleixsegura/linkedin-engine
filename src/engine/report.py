@@ -40,24 +40,40 @@ def _skills_by_job(conn: sqlite3.Connection, job_ids: list[str]) -> dict[str, li
     return out
 
 
-def render_new_jobs(
-    conn: sqlite3.Connection, run_id: int, reports_dir: Path, scoring: Scoring | None = None
-) -> Path:
-    run = conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
-    jobs = [
-        dict(r)
-        for r in conn.execute(
-            """SELECT * FROM jobs WHERE first_run_id = ? AND canonical_id = id AND hidden_reason IS NULL
-               ORDER BY relevance DESC, posted_at DESC""",
-            (run_id,),
-        )
-    ]
-    skills = _skills_by_job(conn, [j["id"] for j in jobs])
-    for j in jobs:
-        j["skills"] = skills.get(j["id"], [])
-        for s in j["skills"]:
-            s["domain"] = scoring is not None and scoring.is_domain(s["category"])
-    hidden = {
+JOB_FIELDS = (
+    "id", "title", "company", "location", "region", "url", "posted_at", "relevance", "seniority",
+    "employment_type", "workplace_type", "no_sponsorship", "description",
+)
+
+
+def script_json(data) -> str:
+    """JSON safe to embed inside a <script> element."""
+    return json.dumps(data, ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+
+
+def job_views(conn: sqlite3.Connection, job_ids: list[str], scoring: Scoring | None = None) -> list[dict]:
+    """Jobs as plain dicts for the reports and the web UI, with skills flagged as domain or not."""
+    if not job_ids:
+        return []
+    marks = ",".join("?" * len(job_ids))
+    rows = {r["id"]: r for r in conn.execute(f"SELECT * FROM jobs WHERE id IN ({marks})", job_ids)}
+    skills = _skills_by_job(conn, job_ids)
+    jobs = []
+    for job_id in job_ids:
+        if job_id not in rows:
+            continue
+        j = {k: rows[job_id][k] for k in JOB_FIELDS}
+        j["no_sponsorship"] = bool(j["no_sponsorship"])
+        j["skills"] = skills.get(job_id, [])
+        for sk in j["skills"]:
+            sk["domain"] = scoring is not None and scoring.is_domain(sk["category"])
+        jobs.append(j)
+    return jobs
+
+
+def hidden_summary(conn: sqlite3.Connection, run_id: int) -> dict[str, int]:
+    """Hidden jobs of a run by human-readable reason."""
+    return {
         HIDDEN_LABELS.get(r["reason"], r["reason"]): r["n"]
         for r in conn.execute(
             """SELECT CASE WHEN canonical_id != id THEN 'repost' ELSE hidden_reason END AS reason,
@@ -67,6 +83,22 @@ def render_new_jobs(
             (run_id,),
         )
     }
+
+
+def render_new_jobs(
+    conn: sqlite3.Connection, run_id: int, reports_dir: Path, scoring: Scoring | None = None
+) -> Path:
+    run = conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
+    ids = [
+        r["id"]
+        for r in conn.execute(
+            """SELECT id FROM jobs WHERE first_run_id = ? AND canonical_id = id AND hidden_reason IS NULL
+               ORDER BY relevance DESC, posted_at DESC""",
+            (run_id,),
+        )
+    ]
+    jobs = job_views(conn, ids, scoring)
+    hidden = hidden_summary(conn, run_id)
     by_region: dict[str, int] = defaultdict(int)
     for j in jobs:
         by_region[j["region"]] += 1
@@ -76,6 +108,7 @@ def render_new_jobs(
         jobs=jobs,
         hidden=hidden,
         by_region=dict(sorted(by_region.items())),
+        jobs_json=script_json(jobs),
         generated=datetime.now().strftime("%Y-%m-%d %H:%M"),
     )
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -111,7 +144,7 @@ def trend_dataset(conn: sqlite3.Connection) -> dict:
 def render_trends(conn: sqlite3.Connection, reports_dir: Path) -> Path:
     data = trend_dataset(conn)
     html = _env.get_template("trends.html.j2").render(
-        data_json=json.dumps(data, ensure_ascii=False),
+        data_json=script_json(data),
         generated=datetime.now().strftime("%Y-%m-%d %H:%M"),
         n_jobs=len(data["jobs"]),
         regions=sorted({j[1] for j in data["jobs"] if j[1]}),

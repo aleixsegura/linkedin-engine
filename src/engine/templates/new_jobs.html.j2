@@ -6,15 +6,7 @@
 <title>New jobs</title>
 <style>
 {% include "_style.css.j2" %}
-.card h2 { font-size: 17px; margin: 0; }
-.card h2 a { color: var(--text); text-decoration: none; }
-.card h2 a:hover { color: var(--accent); }
-.meta { color: var(--muted); font-size: 14px; margin-top: 2px; }
-.score { float: right; font-size: 12px; color: var(--muted); }
-details { margin-top: 10px; }
-summary { cursor: pointer; color: var(--muted); font-size: 13px; }
-.desc { white-space: pre-line; font-size: 14px; margin-top: 8px; max-height: 420px; overflow: auto; }
-.hidden-list { margin: 0 0 24px; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.hidden-list { margin: 0; padding: 0 18px 14px 34px; color: var(--muted); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -23,71 +15,30 @@ summary { cursor: pointer; color: var(--muted); font-size: 13px; }
   <p class="sub">Run #{{ run.id }} · {{ run.started_at[:16].replace("T", " ") }} UTC ·
     <a href="trends.html">See skill trends →</a></p>
 
-  <div class="stats">
-    <div class="stat"><b>{{ jobs|length }}</b><span>new relevant</span></div>
-    {% for region, n in by_region.items() %}
-    <div class="stat"><b>{{ n }}</b><span>{{ region }}</span></div>
-    {% endfor %}
-    <div class="stat"><b>{{ run.n_cards }}</b><span>results reviewed</span></div>
-  </div>
-
-  {% if hidden %}
-  <ul class="hidden-list">
-    {% for label, n in hidden.items() %}<li>{{ n }} hidden: {{ label }}</li>{% endfor %}
-  </ul>
-  {% endif %}
-
-  <div class="bar" id="filters">
-    <button class="pill" data-region="" aria-pressed="true">All</button>
-    {% for region in by_region %}<button class="pill" data-region="{{ region }}" aria-pressed="false">{{ region }}</button>{% endfor %}
-    <input type="search" id="q" placeholder="Filter by text or skill…" aria-label="Filter">
-  </div>
-
-  {% for j in jobs %}
-  <article class="card" data-region="{{ j.region }}"
-           data-text="{{ (j.title ~ ' ' ~ j.company ~ ' ' ~ j.location ~ ' ' ~ (j.skills|map(attribute='name')|join(' ')))|lower }}">
-    <span class="score" title="Relevance score">★ {{ '%g' % j.relevance }}</span>
-    <h2><a href="{{ j.url }}" target="_blank" rel="noopener">{{ j.title }}</a></h2>
-    <div class="meta">{{ j.company }} · {{ j.location }} · {{ j.region }}{% if j.posted_at %} · posted {{ j.posted_at }}{% endif %}</div>
-    <div class="chips">
-      {% if j.seniority and j.seniority != 'Not Applicable' %}<span class="chip">{{ j.seniority }}</span>{% endif %}
-      {% if j.employment_type %}<span class="chip">{{ j.employment_type }}</span>{% endif %}
-      {% if j.workplace_type %}<span class="chip">{{ {'remote': 'Remote', 'hybrid': 'Hybrid'}[j.workplace_type] }}</span>{% endif %}
-      {% if j.no_sponsorship %}<span class="chip warn">No visa sponsorship</span>{% endif %}
+  <section class="panel" aria-label="Summary" style="margin: 0 0 16px">
+    <div class="stats">
+      <div class="stat"><b>{{ jobs|length }}</b><span>new relevant</span></div>
+      {% for region, n in by_region.items() %}
+      <div class="stat"><b>{{ n }}</b><span>{{ region }}</span></div>
+      {% endfor %}
+      <div class="stat"><b>{{ run.n_cards }}</b><span>results reviewed</span></div>
     </div>
-    {% if j.skills %}
-    <div class="chips">
-      {% for s in j.skills %}<span class="chip{% if s.domain %} domain{% endif %}">{{ s.name }}</span>{% endfor %}
-    </div>
+    {% if hidden %}
+    <ul class="hidden-list">
+      {% for label, n in hidden.items() %}<li>{{ n }} hidden: {{ label }}</li>{% endfor %}
+    </ul>
     {% endif %}
-    {% if j.description %}
-    <details><summary>Description</summary><div class="desc">{{ j.description }}</div></details>
-    {% endif %}
-  </article>
-  {% else %}
-  <p class="muted">No new relevant jobs in this run.</p>
-  {% endfor %}
+  </section>
+
+  <div id="jobs">
+{% include "_jobs.html.j2" %}
+  </div>
+  <noscript><p class="muted">Enable JavaScript to see the job list.</p></noscript>
   <p class="muted">Generated {{ generated }}</p>
 </main>
 <script>
-(() => {
-  let region = "";
-  const cards = [...document.querySelectorAll("article.card")];
-  const q = document.getElementById("q");
-  const apply = () => {
-    const term = q.value.trim().toLowerCase();
-    for (const c of cards) {
-      const ok = (!region || c.dataset.region === region) && (!term || c.dataset.text.includes(term));
-      c.style.display = ok ? "" : "none";
-    }
-  };
-  document.querySelectorAll("#filters .pill").forEach(b => b.addEventListener("click", () => {
-    region = b.dataset.region;
-    document.querySelectorAll("#filters .pill").forEach(x => x.setAttribute("aria-pressed", x === b));
-    apply();
-  }));
-  q.addEventListener("input", apply);
-})();
+{% include "_jobs.js.j2" %}
+JobsView(document.getElementById("jobs"), { jobs: {{ jobs_json|safe }}, emptyText: "No new relevant jobs in this run." });
 </script>
 </body>
 </html>
